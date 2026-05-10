@@ -55,12 +55,12 @@ type statsDataMsg struct {
 // Sent as each day's API calls complete, allowing immediate UI updates.
 type statsDayDataMsg struct {
 	sessionID uint64
-	dayIndex int         // 0 = today, 1 = yesterday, etc.
-	isToday  bool        // true if this is today's data
-	isLast   bool        // true if this is the last day to fetch
-	finished []api.Match // finished matches for this day
-	upcoming []api.Match // upcoming matches (only for today)
-	err      error
+	dayIndex  int         // 0 = today, 1 = yesterday, etc.
+	isToday   bool        // true if this is today's data
+	isLast    bool        // true if this is the last day to fetch
+	finished  []api.Match // finished matches for this day
+	upcoming  []api.Match // upcoming matches (only for today)
+	err       error
 }
 
 // pollTickMsg is sent when the 90-second poll interval elapses.
@@ -100,6 +100,14 @@ type standingsMsg struct {
 type cricketLiveMatchesMsg struct {
 	sessionID uint64
 	matches   []cricket.Match
+	err       error
+}
+
+// cricketMatchDetailsMsg contains CricketData match detail data for one selected match.
+type cricketMatchDetailsMsg struct {
+	sessionID uint64
+	matchID   string
+	details   *cricket.MatchDetails
 	err       error
 }
 

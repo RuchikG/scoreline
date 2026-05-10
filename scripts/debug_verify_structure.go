@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -27,9 +29,13 @@ func main() {
 			AllMatches []struct {
 				ID      string `json:"id"`
 				PageURL string `json:"pageUrl"`
-				Home    struct{ Name string `json:"name"` } `json:"home"`
-				Away    struct{ Name string `json:"name"` } `json:"away"`
-				Status  struct {
+				Home    struct {
+					Name string `json:"name"`
+				} `json:"home"`
+				Away struct {
+					Name string `json:"name"`
+				} `json:"away"`
+				Status struct {
 					Finished bool   `json:"finished"`
 					ScoreStr string `json:"scoreStr"`
 				} `json:"status"`

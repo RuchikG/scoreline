@@ -27,12 +27,12 @@ Scoreline was created for those moments when you can't stream or watch matches l
 > If you enjoy Scoreline, give it a star and share it with your friends. That helps others find it and keeps the project going!
 
 <div align="center">
-  <img src="assets/golazo-demo-v0.18.0.gif" alt="Scoreline demo" width="800">
+  <img src="assets/scoreline-demo-v0.18.0.gif" alt="Scoreline demo" width="800">
 </div>
 
 <div align="center">
 
-**Quick Install:** [Install script](#install-script) · Homebrew packaging coming soon
+**Quick Install:** [Homebrew](#homebrew) · [Install script](#install-script)
 
 </div>
 
@@ -53,8 +53,17 @@ Scoreline was created for those moments when you can't stream or watch matches l
 
 ### Homebrew
 
-Homebrew packaging is planned for the Scoreline fork but is not configured yet.
-Use the install script until the new tap/formula is published.
+```bash
+brew tap RuchikG/tap
+brew install scoreline
+```
+
+To update later:
+
+```bash
+brew update
+brew upgrade scoreline
+```
 
 ### Install script
 
@@ -88,11 +97,13 @@ scoreline
 
 ### Cricket Data
 
-For live CricketData.org results, set the environment variable used by Cricket settings:
+Live cricket scores use the free CricketData.org/CricAPI service. Sign up for a free API key at [CricketData.org](https://cricketdata.org/), then set the environment variable used by Scoreline's Cricket settings before launching the app:
 
 ```bash
 export CRICKETDATA_API_KEY="your-key"
 ```
+
+Do not commit your API key to the repo. If you prefer a different environment variable name, open Cricket → Settings and change the API key env value.
 
 Cricket archives use Cricsheet JSON data cached under the Scoreline cache directory. Open Cricket → Archives and press `r` to refresh the local archive cache. The current Cricsheet JSON archive is about 100 MB, so refresh is manual.
 
@@ -100,6 +111,7 @@ Cricket archives use Cricsheet JSON data cached under the Scoreline cache direct
 
 - [Supported Leagues](docs/SUPPORTED_LEAGUES.md): Full list of available leagues and competitions, customize your preferences in the **Settings** menu.
 - [Notifications](docs/NOTIFICATIONS.md): Desktop notification setup and configuration
+- [Release Checklist](docs/RELEASE.md): Maintainer steps for GitHub releases and Homebrew tap publishing
 
 ---
 

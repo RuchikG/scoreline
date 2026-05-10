@@ -9,18 +9,38 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/RuchikG/scoreline/internal/cricket"
 )
 
 const defaultBaseURL = "https://api.cricapi.com/v1"
+const defaultCacheTTL = 30 * time.Second
+const defaultMinRequestInterval = 2 * time.Second
 
 // Client fetches live cricket data from CricketData.org.
 type Client struct {
-	baseURL    string
-	apiKey     string
-	httpClient *http.Client
+	baseURL            string
+	apiKey             string
+	httpClient         *http.Client
+	cacheTTL           time.Duration
+	minRequestInterval time.Duration
+
+	mu          sync.Mutex
+	lastRequest time.Time
+	listCache   map[int]cachedMatches
+	detailCache map[string]cachedDetails
+}
+
+type cachedMatches struct {
+	matches   []cricket.Match
+	fetchedAt time.Time
+}
+
+type cachedDetails struct {
+	details   *cricket.MatchDetails
+	fetchedAt time.Time
 }
 
 // NewClientFromEnv creates a client using an API key environment variable.
@@ -29,11 +49,15 @@ func NewClientFromEnv(envName string) *Client {
 		envName = "CRICKETDATA_API_KEY"
 	}
 	return &Client{
-		baseURL: defaultBaseURL,
-		apiKey:  strings.TrimSpace(os.Getenv(envName)),
+		baseURL:            defaultBaseURL,
+		apiKey:             strings.TrimSpace(os.Getenv(envName)),
+		cacheTTL:           defaultCacheTTL,
+		minRequestInterval: defaultMinRequestInterval,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		listCache:   make(map[int]cachedMatches),
+		detailCache: make(map[string]cachedDetails),
 	}
 }
 
@@ -46,6 +70,9 @@ func (c *Client) HasAPIKey() bool {
 func (c *Client) CurrentMatches(ctx context.Context, offset int) ([]cricket.Match, error) {
 	if c == nil || c.apiKey == "" {
 		return nil, fmt.Errorf("cricketdata api key is not configured")
+	}
+	if matches, ok := c.cachedCurrentMatches(offset); ok {
+		return matches, nil
 	}
 	endpoint, err := url.Parse(c.baseURL + "/currentMatches")
 	if err != nil {
@@ -60,7 +87,7 @@ func (c *Client) CurrentMatches(ctx context.Context, offset int) ([]cricket.Matc
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +100,33 @@ func (c *Client) CurrentMatches(ctx context.Context, offset int) ([]cricket.Matc
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, err
 	}
-	return mapCurrentMatches(payload.Data), nil
+	if err := payload.err(); err != nil {
+		return nil, err
+	}
+	matches := mapCurrentMatches(payload.Data)
+	c.setCurrentMatchesCache(offset, matches)
+	return matches, nil
 }
 
 type currentMatchesResponse struct {
-	Data []currentMatch `json:"data"`
+	Status string         `json:"status"`
+	Info   string         `json:"info"`
+	Reason string         `json:"reason"`
+	Data   []currentMatch `json:"data"`
+}
+
+func (r currentMatchesResponse) err() error {
+	if strings.EqualFold(r.Status, "failure") {
+		reason := strings.TrimSpace(r.Reason)
+		if reason == "" {
+			reason = strings.TrimSpace(r.Info)
+		}
+		if reason == "" {
+			reason = "request failed"
+		}
+		return fmt.Errorf("cricketdata current matches: %s", reason)
+	}
+	return nil
 }
 
 type currentMatch struct {
@@ -91,6 +140,80 @@ type currentMatch struct {
 	Score     []currentScore `json:"score"`
 }
 
+// MatchInfo fetches details for one match from CricketData's match_info endpoint.
+func (c *Client) MatchInfo(ctx context.Context, id string) (*cricket.MatchDetails, error) {
+	if c == nil || c.apiKey == "" {
+		return nil, fmt.Errorf("cricketdata api key is not configured")
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("cricketdata match id is required")
+	}
+	if details, ok := c.cachedMatchInfo(id); ok {
+		return details, nil
+	}
+
+	endpoint, err := url.Parse(c.baseURL + "/match_info")
+	if err != nil {
+		return nil, err
+	}
+	q := endpoint.Query()
+	q.Set("apikey", c.apiKey)
+	q.Set("id", id)
+	endpoint.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("cricketdata match info status: %s", resp.Status)
+	}
+
+	var payload matchInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, err
+	}
+	if err := payload.err(); err != nil {
+		return nil, err
+	}
+	details := mapMatchInfo(payload.Data)
+	c.setMatchInfoCache(id, details)
+	return details, nil
+}
+
+type matchInfoResponse struct {
+	Status string    `json:"status"`
+	Info   string    `json:"info"`
+	Reason string    `json:"reason"`
+	Data   matchInfo `json:"data"`
+}
+
+func (r matchInfoResponse) err() error {
+	if strings.EqualFold(r.Status, "failure") {
+		reason := strings.TrimSpace(r.Reason)
+		if reason == "" {
+			reason = strings.TrimSpace(r.Info)
+		}
+		if reason == "" {
+			reason = "request failed"
+		}
+		return fmt.Errorf("cricketdata match info: %s", reason)
+	}
+	return nil
+}
+
+type matchInfo struct {
+	currentMatch
+	TossWinner string `json:"tossWinner"`
+	TossChoice string `json:"tossChoice"`
+}
+
 type currentScore struct {
 	Runs    int     `json:"r"`
 	Wickets int     `json:"w"`
@@ -101,28 +224,61 @@ type currentScore struct {
 func mapCurrentMatches(rows []currentMatch) []cricket.Match {
 	matches := make([]cricket.Match, 0, len(rows))
 	for _, row := range rows {
-		teams := make([]cricket.Team, 0, len(row.Teams))
-		for _, name := range row.Teams {
-			teams = append(teams, cricket.Team{
-				ID:        strings.ToLower(strings.ReplaceAll(name, " ", "-")),
-				Name:      name,
-				ShortName: shortTeamName(name),
-			})
-		}
-		startTime, _ := time.Parse(time.RFC3339, row.DateTime)
-		matches = append(matches, cricket.Match{
-			ID:                  row.ID,
-			Source:              "cricketdata",
-			Competition:         row.Name,
-			MatchType:           strings.ToUpper(row.MatchType),
-			Venue:               row.Venue,
-			StartTime:           startTime,
-			Status:              mapStatus(row.Status),
-			Teams:               teams,
-			CurrentScoreSummary: scoreSummary(row.Score),
-		})
+		matches = append(matches, mapMatch(row))
 	}
 	return matches
+}
+
+func mapMatch(row currentMatch) cricket.Match {
+	teams := make([]cricket.Team, 0, len(row.Teams))
+	for _, name := range row.Teams {
+		teams = append(teams, cricket.Team{
+			ID:        strings.ToLower(strings.ReplaceAll(name, " ", "-")),
+			Name:      name,
+			ShortName: shortTeamName(name),
+		})
+	}
+	startTime := parseCricketTime(row.DateTime)
+	return cricket.Match{
+		ID:                  row.ID,
+		Source:              "cricketdata",
+		Competition:         row.Name,
+		MatchType:           strings.ToUpper(row.MatchType),
+		Venue:               row.Venue,
+		StartTime:           startTime,
+		Status:              mapStatus(row.Status),
+		Teams:               teams,
+		CurrentScoreSummary: scoreSummary(row.Score),
+	}
+}
+
+func parseCricketTime(value string) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
+}
+
+func mapMatchInfo(row matchInfo) *cricket.MatchDetails {
+	toss := ""
+	if row.TossWinner != "" {
+		toss = row.TossWinner
+		if row.TossChoice != "" {
+			toss += " chose to " + row.TossChoice
+		}
+	}
+	return &cricket.MatchDetails{
+		Match:       mapMatch(row.currentMatch),
+		Toss:        toss,
+		Result:      resultText(row.Status),
+		LastUpdated: time.Now(),
+	}
 }
 
 func mapStatus(status string) cricket.MatchStatus {
@@ -151,6 +307,91 @@ func scoreSummary(scores []currentScore) string {
 	}
 	score := scores[len(scores)-1]
 	return fmt.Sprintf("%s %d/%d (%.1f ov)", score.Inning, score.Runs, score.Wickets, score.Overs)
+}
+
+func resultText(status string) string {
+	if mapStatus(status) == cricket.MatchStatusFinished {
+		return status
+	}
+	return ""
+}
+
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.minRequestInterval > 0 {
+		c.mu.Lock()
+		wait := c.minRequestInterval - time.Since(c.lastRequest)
+		c.mu.Unlock()
+		if wait > 0 {
+			timer := time.NewTimer(wait)
+			select {
+			case <-req.Context().Done():
+				timer.Stop()
+				return nil, req.Context().Err()
+			case <-timer.C:
+			}
+		}
+	}
+	resp, err := c.httpClient.Do(req)
+	if err == nil {
+		c.mu.Lock()
+		c.lastRequest = time.Now()
+		c.mu.Unlock()
+	}
+	return resp, err
+}
+
+func (c *Client) cachedCurrentMatches(offset int) ([]cricket.Match, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.listCache[offset]
+	if !ok || c.cacheTTL <= 0 || time.Since(entry.fetchedAt) > c.cacheTTL {
+		return nil, false
+	}
+	return append([]cricket.Match(nil), entry.matches...), true
+}
+
+func (c *Client) setCurrentMatchesCache(offset int, matches []cricket.Match) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.listCache == nil {
+		c.listCache = make(map[int]cachedMatches)
+	}
+	c.listCache[offset] = cachedMatches{matches: append([]cricket.Match(nil), matches...), fetchedAt: time.Now()}
+}
+
+func (c *Client) cachedMatchInfo(id string) (*cricket.MatchDetails, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	entry, ok := c.detailCache[id]
+	if !ok || c.cacheTTL <= 0 || time.Since(entry.fetchedAt) > c.cacheTTL {
+		return nil, false
+	}
+	return cloneDetails(entry.details), true
+}
+
+func (c *Client) setMatchInfoCache(id string, details *cricket.MatchDetails) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.detailCache == nil {
+		c.detailCache = make(map[string]cachedDetails)
+	}
+	c.detailCache[id] = cachedDetails{details: cloneDetails(details), fetchedAt: time.Now()}
+}
+
+func cloneDetails(details *cricket.MatchDetails) *cricket.MatchDetails {
+	if details == nil {
+		return nil
+	}
+	next := *details
+	next.Match.Teams = append([]cricket.Team(nil), details.Match.Teams...)
+	next.Innings = append([]cricket.Innings(nil), details.Innings...)
+	next.CurrentBatters = append([]cricket.PlayerBatting(nil), details.CurrentBatters...)
+	next.RecentOvers = append([]string(nil), details.RecentOvers...)
+	if details.CurrentBowler != nil {
+		bowler := *details.CurrentBowler
+		next.CurrentBowler = &bowler
+	}
+	return &next
 }
 
 func shortTeamName(name string) string {

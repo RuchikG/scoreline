@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -24,7 +26,7 @@ func main() {
 		Minute:     11,
 		HomeScore:  0,
 		AwayScore:  1,
-		IsHomeTeam: false, // Igor Thiago scored for Brentford (away team)
+		IsHomeTeam: false,                           // Igor Thiago scored for Brentford (away team)
 		MatchTime:  time.Now().Add(-24 * time.Hour), // Assume yesterday
 	}
 

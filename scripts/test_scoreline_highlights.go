@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -16,8 +18,8 @@ func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("🔬 Scoreline Highlights Integration Test")
 		fmt.Println("")
-		fmt.Println("Usage: go run scripts/test_golazo_highlights.go <match_id>")
-		fmt.Println("Example: go run scripts/test_golazo_highlights.go 4803233")
+		fmt.Println("Usage: go run scripts/test_scoreline_highlights.go <match_id>")
+		fmt.Println("Example: go run scripts/test_scoreline_highlights.go 4803233")
 		fmt.Println("")
 		fmt.Println("This tool tests the complete scoreline highlights pipeline:")
 		fmt.Println("  1. Raw API response")
@@ -39,7 +41,7 @@ func main() {
 
 	// 2. Test scoreline parsing
 	fmt.Println("\n2️⃣  Scoreline FotMob Client Parsing...")
-	parsedHighlights := testGolazoParsing(matchID)
+	parsedHighlights := testScorelineParsing(matchID)
 
 	// 3. Compare results
 	fmt.Println("\n3️⃣  Comparison & Analysis...")
@@ -126,7 +128,7 @@ func checkRawAPI(matchIDStr string) map[string]interface{} {
 	return highlightsObj
 }
 
-func testGolazoParsing(matchID int) *api.MatchHighlight {
+func testScorelineParsing(matchID int) *api.MatchHighlight {
 	client := fotmob.NewClient()
 	ctx := context.Background()
 

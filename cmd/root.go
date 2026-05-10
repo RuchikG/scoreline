@@ -99,7 +99,17 @@ func runUpdate() {
 
 // runBrewUpdate attempts to update scoreline via Homebrew.
 func runBrewUpdate() error {
-	return fmt.Errorf("Scoreline Homebrew formula is not configured yet; use the install script update path for now")
+	update := exec.Command("brew", "update")
+	update.Stdout = os.Stdout
+	update.Stderr = os.Stderr
+	if err := update.Run(); err != nil {
+		return err
+	}
+
+	upgrade := exec.Command("brew", "upgrade", "scoreline")
+	upgrade.Stdout = os.Stdout
+	upgrade.Stderr = os.Stderr
+	return upgrade.Run()
 }
 
 // runScriptUpdate updates scoreline via the install script.

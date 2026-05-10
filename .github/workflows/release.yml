@@ -2,17 +2,204 @@ name: Release
 
 on:
   push:
-    tags: ['v*.*.*']
+    tags:
+      - 'v*.*.*'
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    # Use @main for newest version, or pin to specific version like @v1.0.0
-    uses: 0xjuanma/simple-release/.github/workflows/reusable-release.yml@main
-    with:
-      changelog-path: 'CHANGELOG.md'
-    secrets:
-      RELEASE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: amd64
+            extension: ''
+          - goos: darwin
+            goarch: arm64
+            extension: ''
+          - goos: linux
+            goarch: amd64
+            extension: ''
+          - goos: linux
+            goarch: arm64
+            extension: ''
+          - goos: windows
+            goarch: amd64
+            extension: '.exe'
+          - goos: windows
+            goarch: arm64
+            extension: '.exe'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          mkdir -p dist
+          binary="scoreline-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }}"
+          go build -trimpath -ldflags="-s -w -X github.com/RuchikG/scoreline/cmd.Version=${{ github.ref_name }}" -o "dist/${binary}" .
+          archive="scoreline_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz"
+          tar -C dist -czf "dist/${archive}" "${binary}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scoreline-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  update-homebrew-tap:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check tap token
+        id: tap-token
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$TAP_GITHUB_TOKEN" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "TAP_GITHUB_TOKEN is not configured; skipping Homebrew tap update." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout tap
+        if: steps.tap-token.outputs.available == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: RuchikG/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: homebrew-tap
+
+      - name: Download release archives
+        if: steps.tap-token.outputs.available == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Update formula
+        if: steps.tap-token.outputs.available == 'true'
+        env:
+          VERSION_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p homebrew-tap/Formula
+          version="${VERSION_TAG#v}"
+          base_url="https://github.com/RuchikG/scoreline/releases/download/${VERSION_TAG}"
+
+          sha() {
+            sha256sum "release-assets/$1" | awk '{print $1}'
+          }
+
+          darwin_amd64="scoreline_${VERSION_TAG}_darwin_amd64.tar.gz"
+          darwin_arm64="scoreline_${VERSION_TAG}_darwin_arm64.tar.gz"
+          linux_amd64="scoreline_${VERSION_TAG}_linux_amd64.tar.gz"
+          linux_arm64="scoreline_${VERSION_TAG}_linux_arm64.tar.gz"
+
+          cat > homebrew-tap/Formula/scoreline.rb <<FORMULA
+          class Scoreline < Formula
+            desc "Multi-sport scores in your terminal"
+            homepage "https://github.com/RuchikG/scoreline"
+            version "${version}"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${base_url}/${darwin_arm64}"
+                sha256 "$(sha "$darwin_arm64")"
+              else
+                url "${base_url}/${darwin_amd64}"
+                sha256 "$(sha "$darwin_amd64")"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "${base_url}/${linux_arm64}"
+                sha256 "$(sha "$linux_arm64")"
+              else
+                url "${base_url}/${linux_amd64}"
+                sha256 "$(sha "$linux_amd64")"
+              end
+            end
+
+            def install
+              bin.install Dir["scoreline-*"].first => "scoreline"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/scoreline --version")
+            end
+          end
+          FORMULA
+
+      - name: Commit formula
+        if: steps.tap-token.outputs.available == 'true'
+        working-directory: homebrew-tap
+        env:
+          VERSION_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/scoreline.rb
+          if git diff --cached --quiet; then
+            echo "Formula is already current."
+            exit 0
+          fi
+          git commit -m "Update scoreline to ${VERSION_TAG}"
+          git push

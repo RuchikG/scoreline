@@ -1,3 +1,5 @@
+//go:build ignore
+
 // api_results_raw.go - Debug script to inspect raw FotMob API responses and struct conversions
 //
 // Usage:

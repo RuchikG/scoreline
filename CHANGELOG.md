@@ -8,11 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Scoreline Release Pipeline** - Added Scoreline-owned GitHub release automation with cross-platform binaries, checksums, and Homebrew tap formula publishing.
+- **Release Checklist** - Added maintainer release documentation covering GitHub release and Homebrew tap setup.
 
 ### Changed
+- **Homebrew Install Docs** - Updated README instructions for `brew tap RuchikG/tap` and `brew install scoreline`.
+- **Update Command** - Homebrew-installed builds now update with `brew update` and `brew upgrade scoreline`.
 
 ### Fixed
-- **Homebrew Update** - Fixed `golazo -u` falling back to the install script when brew successfully built the new version but failed the link step due to a conflicting binary
+- **Homebrew Update** - Fixed `scoreline -u` falling back to the install script when brew successfully built the new version but failed the link step due to a conflicting binary.
 
 ## [0.24.0] - 2026-05-03
 
@@ -328,4 +332,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Beautiful TUI with neon-styled interface
 - FotMob API integration for match data
 - Cross-platform support (macOS, Linux)
-

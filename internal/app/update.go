@@ -114,6 +114,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.handleCricketLiveMatches(msg)
 
+	case cricketMatchDetailsMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
+		return m.handleCricketMatchDetails(msg)
+
 	case cricketArchiveMatchesMsg:
 		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
 			return m, nil

@@ -1,3 +1,5 @@
+//go:build ignore
+
 // api_results_render.go - Render fetched match data using Scoreline's stats UI (right panel)
 //
 // Usage:

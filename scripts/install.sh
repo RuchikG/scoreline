@@ -106,7 +106,7 @@ if [ -f "$INSTALL_DIR/$BINARY_NAME" ]; then
     fi
 
     printf "\n${BRIGHT_GREEN}✓ ${BINARY_NAME} ${LATEST} installed successfully!${NC}\n"
-    printf "${BRIGHT_GREEN}Run '${BINARY_NAME}' to start watching live football matches.${NC}\n"
+    printf "${BRIGHT_GREEN}Run '${BINARY_NAME}' to start following live scores.${NC}\n"
 else
     printf "${BRIGHT_RED}Installation failed${NC}\n"
     exit 1

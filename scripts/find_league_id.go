@@ -1,3 +1,5 @@
+//go:build ignore
+
 // find_league_id.go - Find FotMob league IDs by name or country
 //
 // Usage:

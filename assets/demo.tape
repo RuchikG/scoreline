@@ -1,9 +1,9 @@
-Output golazo-demo.gif
+Output scoreline-demo.gif
 Set FontSize 10
 Set Width 1000
 Set Height 700
 
-Type "golazo"
+Type "scoreline"
 Enter
 Sleep 1.5s
 

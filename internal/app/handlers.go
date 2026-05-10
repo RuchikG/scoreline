@@ -126,6 +126,21 @@ func (m model) handleCricketLiveMatches(msg cricketLiveMatchesMsg) (tea.Model, t
 	m.selected = 0
 	if len(m.cricketMatches) > 0 {
 		m.cricketDetails = m.cricketDetailsForSelected()
+		return m, fetchCricketMatchDetails(m.sportSessionID, m.cricketClient, m.cricketMatches[m.selected].ID, m.useMockData)
+	}
+	return m, nil
+}
+
+func (m model) handleCricketMatchDetails(msg cricketMatchDetailsMsg) (tea.Model, tea.Cmd) {
+	if m.selected < 0 || m.selected >= len(m.cricketMatches) || m.cricketMatches[m.selected].ID != msg.matchID {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.debugLog(fmt.Sprintf("failed to load cricket match details: %v", msg.err))
+		return m, nil
+	}
+	if msg.details != nil {
+		m.cricketDetails = msg.details
 	}
 	return m, nil
 }
@@ -140,11 +155,13 @@ func (m model) handleCricketLiveKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.selected < len(m.cricketMatches)-1 {
 			m.selected++
 			m.cricketDetails = m.cricketDetailsForSelected()
+			return m, fetchCricketMatchDetails(m.sportSessionID, m.cricketClient, m.cricketMatches[m.selected].ID, m.useMockData)
 		}
 	case "k", "up":
 		if m.selected > 0 {
 			m.selected--
 			m.cricketDetails = m.cricketDetailsForSelected()
+			return m, fetchCricketMatchDetails(m.sportSessionID, m.cricketClient, m.cricketMatches[m.selected].ID, m.useMockData)
 		}
 	}
 	return m, nil

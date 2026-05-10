@@ -120,9 +120,8 @@ if (Test-Path $installPath) {
     Write-Host "✓ $binaryName $latest installed successfully!" -ForegroundColor Green
     Write-Host "  Installed to: $installPath" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "Run '$binaryName' to start watching live football matches." -ForegroundColor Green
+    Write-Host "Run '$binaryName' to start following live scores." -ForegroundColor Green
 } else {
     Write-Host "Installation failed" -ForegroundColor Red
     exit 1
 }
-

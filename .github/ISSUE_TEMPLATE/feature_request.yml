@@ -16,7 +16,7 @@ body:
     id: benefit
     attributes:
       label: Why?
-      description: How would this improve Golazo?
+      description: How would this improve Scoreline?
       placeholder: "This would help because..."
     validations:
       required: true

@@ -30,4 +30,4 @@ fi
 echo "🔬 Testing scoreline highlights pipeline for match ID: $1"
 echo ""
 
-go run scripts/test_golazo_highlights.go "$1"
+go run scripts/test_scoreline_highlights.go "$1"

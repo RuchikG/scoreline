@@ -9,7 +9,7 @@ body:
       label: Environment
       description: Your setup details
       value: |
-        - Golazo version: 
+        - Scoreline version: 
         - OS: 
         - Terminal: 
     validations:

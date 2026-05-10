@@ -1,3 +1,5 @@
+//go:build ignore
+
 // test_notification.go - Test script to verify notifications work
 //
 // Usage:

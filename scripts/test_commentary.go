@@ -1,3 +1,5 @@
+//go:build ignore
+
 // test_commentary.go - Debug script to inspect FotMob commentary data for a single match
 //
 // This script fetches raw match data and looks for commentary-related fields.
@@ -337,4 +339,3 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("This will show Premier League matches for today with their IDs.")
 }
-

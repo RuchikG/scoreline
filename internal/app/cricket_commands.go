@@ -28,6 +28,21 @@ func fetchCricketLiveMatches(sessionID uint64, client *cricketdata.Client, useMo
 	}
 }
 
+func fetchCricketMatchDetails(sessionID uint64, client *cricketdata.Client, matchID string, useMockData bool) tea.Cmd {
+	return func() tea.Msg {
+		if useMockData {
+			return cricketMatchDetailsMsg{sessionID: sessionID, matchID: matchID, details: data.MockCricketMatchDetails(matchID)}
+		}
+		if client == nil || !client.HasAPIKey() {
+			return cricketMatchDetailsMsg{sessionID: sessionID, matchID: matchID, details: nil}
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		details, err := client.MatchInfo(ctx, matchID)
+		return cricketMatchDetailsMsg{sessionID: sessionID, matchID: matchID, details: details, err: err}
+	}
+}
+
 func loadCricketArchiveMatches(sessionID uint64, client *cricsheet.Client, settings data.CricketSettings, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
