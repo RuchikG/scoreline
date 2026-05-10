@@ -1,5 +1,5 @@
 {
-  description = "golazo";
+  description = "scoreline";
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";

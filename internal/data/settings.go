@@ -4,7 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
+	"github.com/RuchikG/scoreline/internal/sports"
 	"gopkg.in/yaml.v3"
 )
 
@@ -24,7 +26,7 @@ const (
 	RegionGlobal  = "Global"
 )
 
-// AllSupportedLeagues contains all leagues that Golazo supports organized by region.
+// AllSupportedLeagues contains all soccer leagues that Scoreline supports organized by region.
 // This is the source of truth for available leagues.
 var AllSupportedLeagues = map[string][]LeagueInfo{
 	RegionEurope: {
@@ -152,11 +154,109 @@ var AllSupportedLeagues = map[string][]LeagueInfo{
 	},
 }
 
+// SoccerSettings stores soccer-specific preferences.
+type SoccerSettings struct {
+	// SelectedLeagues contains the IDs of leagues the user wants to follow.
+	// If empty, DefaultLeagueIDs are used.
+	SelectedLeagues []int `yaml:"selected_leagues,omitempty"`
+}
+
+// CricketSettings stores cricket-specific preferences.
+type CricketSettings struct {
+	APIKeyEnv            string   `yaml:"api_key_env"`
+	SelectedFormats      []string `yaml:"selected_formats"`
+	SelectedTeams        []string `yaml:"selected_teams"`
+	SelectedCompetitions []string `yaml:"selected_competitions"`
+	LiveRefreshSeconds   int      `yaml:"live_refresh_seconds"`
+	DetailRefreshSeconds int      `yaml:"detail_refresh_seconds"`
+	ArchiveRecentDays    int      `yaml:"archive_recent_days"`
+}
+
 // Settings represents user preferences stored in settings.yaml.
 type Settings struct {
-	// SelectedLeagues contains the IDs of leagues the user wants to follow.
-	// If empty, all supported leagues are used.
-	SelectedLeagues []int `yaml:"selected_leagues"`
+	SelectedSport sports.Sport    `yaml:"selected_sport,omitempty"`
+	Soccer        SoccerSettings  `yaml:"soccer"`
+	Cricket       CricketSettings `yaml:"cricket"`
+
+	// SelectedLeagues is the legacy Golazo top-level shape. It is accepted on
+	// read and omitted on writes.
+	SelectedLeagues []int `yaml:"selected_leagues,omitempty"`
+}
+
+// DefaultCricketSettings returns conservative defaults for cricket.
+func DefaultCricketSettings() CricketSettings {
+	return CricketSettings{
+		APIKeyEnv:            "CRICKETDATA_API_KEY",
+		SelectedFormats:      []string{"test", "odi", "t20"},
+		SelectedTeams:        []string{},
+		SelectedCompetitions: []string{},
+		LiveRefreshSeconds:   300,
+		DetailRefreshSeconds: 60,
+		ArchiveRecentDays:    30,
+	}
+}
+
+// DefaultSettings returns a complete Scoreline settings object.
+func DefaultSettings() *Settings {
+	return &Settings{
+		Soccer:  SoccerSettings{},
+		Cricket: DefaultCricketSettings(),
+	}
+}
+
+func normalizeSettings(settings *Settings) *Settings {
+	if settings == nil {
+		settings = DefaultSettings()
+	}
+	defaults := DefaultCricketSettings()
+	if len(settings.Soccer.SelectedLeagues) == 0 && len(settings.SelectedLeagues) > 0 {
+		settings.Soccer.SelectedLeagues = slices.Clone(settings.SelectedLeagues)
+		settings.SelectedLeagues = nil
+	}
+	if !settings.SelectedSport.IsValid() {
+		settings.SelectedSport = sports.None
+	}
+	if settings.Cricket.APIKeyEnv == "" {
+		settings.Cricket.APIKeyEnv = defaults.APIKeyEnv
+	}
+	if len(settings.Cricket.SelectedFormats) == 0 {
+		settings.Cricket.SelectedFormats = slices.Clone(defaults.SelectedFormats)
+	} else {
+		settings.Cricket.SelectedFormats = normalizeStringList(settings.Cricket.SelectedFormats, true)
+	}
+	settings.Cricket.SelectedTeams = normalizeStringList(settings.Cricket.SelectedTeams, false)
+	settings.Cricket.SelectedCompetitions = normalizeStringList(settings.Cricket.SelectedCompetitions, false)
+	if settings.Cricket.LiveRefreshSeconds <= 0 {
+		settings.Cricket.LiveRefreshSeconds = defaults.LiveRefreshSeconds
+	}
+	if settings.Cricket.DetailRefreshSeconds <= 0 {
+		settings.Cricket.DetailRefreshSeconds = defaults.DetailRefreshSeconds
+	}
+	if settings.Cricket.ArchiveRecentDays <= 0 {
+		settings.Cricket.ArchiveRecentDays = defaults.ArchiveRecentDays
+	}
+	return settings
+}
+
+func normalizeStringList(values []string, lower bool) []string {
+	next := values[:0]
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if lower {
+			value = strings.ToLower(value)
+		}
+		if value == "" {
+			continue
+		}
+		key := strings.ToLower(value)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		next = append(next, value)
+	}
+	return next
 }
 
 // SettingsPath returns the path to the settings file.
@@ -168,30 +268,61 @@ func SettingsPath() (string, error) {
 	return filepath.Join(dir, settingsFileName), nil
 }
 
+// LegacySettingsPath returns the old Golazo settings path without creating its directory.
+func LegacySettingsPath() (string, error) {
+	dir, err := LegacyConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, settingsFileName), nil
+}
+
 // LoadSettings reads settings from the settings.yaml file.
 // Returns default settings (empty selection = all leagues) if file doesn't exist.
 func LoadSettings() (*Settings, error) {
 	path, err := SettingsPath()
 	if err != nil {
-		return &Settings{}, err
+		return DefaultSettings(), err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// No settings file - return empty settings (will use all leagues)
-			return &Settings{}, nil
+			return loadLegacySettings()
 		}
-		return &Settings{}, err
+		return DefaultSettings(), err
 	}
 
 	var settings Settings
 	if err := yaml.Unmarshal(data, &settings); err != nil {
-		// Invalid YAML - return empty settings
-		return &Settings{}, nil
+		// Invalid YAML - return defaults
+		return DefaultSettings(), nil
 	}
 
-	return &settings, nil
+	return normalizeSettings(&settings), nil
+}
+
+func loadLegacySettings() (*Settings, error) {
+	path, err := LegacySettingsPath()
+	if err != nil {
+		return DefaultSettings(), nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return DefaultSettings(), nil
+	}
+
+	var legacy Settings
+	if err := yaml.Unmarshal(data, &legacy); err != nil {
+		return DefaultSettings(), nil
+	}
+
+	settings := normalizeSettings(&legacy)
+	settings.SelectedSport = sports.Soccer
+	if err := SaveSettings(settings); err != nil {
+		return settings, err
+	}
+	return settings, nil
 }
 
 // SaveSettings writes settings to the settings.yaml file.
@@ -201,12 +332,29 @@ func SaveSettings(settings *Settings) error {
 		return err
 	}
 
+	settings = normalizeSettings(settings)
+	settings.SelectedLeagues = nil
+
 	data, err := yaml.Marshal(settings)
 	if err != nil {
 		return err
 	}
 
 	return os.WriteFile(path, data, 0644)
+}
+
+// SaveSelectedSport persists the last selected sport.
+func SaveSelectedSport(sport sports.Sport) error {
+	settings, err := LoadSettings()
+	if err != nil {
+		settings = DefaultSettings()
+	}
+	if !sport.IsValid() {
+		settings.SelectedSport = sports.None
+	} else {
+		settings.SelectedSport = sport
+	}
+	return SaveSettings(settings)
 }
 
 // DefaultLeagueIDs contains the default leagues used when no selection is made.
@@ -221,12 +369,12 @@ var DefaultLeagueIDs = []int{
 // If no leagues are selected in settings, returns the default leagues (not all).
 func ActiveLeagueIDs() []int {
 	settings, err := LoadSettings()
-	if err != nil || len(settings.SelectedLeagues) == 0 {
+	if err != nil || len(settings.Soccer.SelectedLeagues) == 0 {
 		// Return default leagues for efficient API usage
 		return DefaultLeagueIDs
 	}
 
-	return settings.SelectedLeagues
+	return settings.Soccer.SelectedLeagues
 }
 
 // AllLeagueIDs returns all supported league IDs (used as fallback).
@@ -247,7 +395,7 @@ func AllLeagueIDs() []int {
 
 // IsLeagueSelected checks if a league ID is in the selected list.
 func (s *Settings) IsLeagueSelected(leagueID int) bool {
-	return slices.Contains(s.SelectedLeagues, leagueID)
+	return slices.Contains(s.Soccer.SelectedLeagues, leagueID)
 }
 
 // GetAllRegions returns a list of all available regions in order.

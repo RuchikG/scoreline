@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/fotmob"
-	"github.com/0xjuanma/golazo/internal/reddit"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/reddit"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -21,7 +21,7 @@ const LiveBatchSize = 4
 // fetchLiveBatchData fetches live matches for a batch of leagues concurrently.
 // batchIndex: 0, 1, 2, ... (each batch fetches LiveBatchSize leagues in parallel)
 // Results appear after each batch completes, giving progressive updates while being fast.
-func fetchLiveBatchData(parentCtx context.Context, client *fotmob.Client, useMockData bool, batchIndex int) tea.Cmd {
+func fetchLiveBatchData(sessionID uint64, parentCtx context.Context, client *fotmob.Client, useMockData bool, batchIndex int) tea.Cmd {
 	return func() tea.Msg {
 		totalLeagues := fotmob.TotalLeagues()
 		startIdx := batchIndex * LiveBatchSize
@@ -31,19 +31,21 @@ func fetchLiveBatchData(parentCtx context.Context, client *fotmob.Client, useMoc
 
 		// Check if cancelled before starting work
 		if parentCtx.Err() != nil {
-			return liveBatchDataMsg{batchIndex: batchIndex, isLast: true}
+			return liveBatchDataMsg{sessionID: sessionID, batchIndex: batchIndex, isLast: true}
 		}
 
 		if useMockData {
 			// Return mock data only on first batch
 			if batchIndex == 0 {
 				return liveBatchDataMsg{
+					sessionID:  sessionID,
 					batchIndex: batchIndex,
 					isLast:     isLast,
 					matches:    data.MockLiveMatches(),
 				}
 			}
 			return liveBatchDataMsg{
+				sessionID:  sessionID,
 				batchIndex: batchIndex,
 				isLast:     isLast,
 				matches:    nil,
@@ -52,6 +54,7 @@ func fetchLiveBatchData(parentCtx context.Context, client *fotmob.Client, useMoc
 
 		if client == nil {
 			return liveBatchDataMsg{
+				sessionID:  sessionID,
 				batchIndex: batchIndex,
 				isLast:     isLast,
 				matches:    nil,
@@ -95,6 +98,7 @@ func fetchLiveBatchData(parentCtx context.Context, client *fotmob.Client, useMoc
 		wg.Wait()
 
 		return liveBatchDataMsg{
+			sessionID:  sessionID,
 			batchIndex: batchIndex,
 			isLast:     isLast,
 			matches:    allLive,
@@ -107,14 +111,14 @@ func fetchLiveBatchData(parentCtx context.Context, client *fotmob.Client, useMoc
 // This is used to keep the live matches list current while the user is in the view.
 // Fetches both live and upcoming matches so the upcoming section stays current
 // as matches transition from upcoming to live.
-func scheduleLiveRefresh(client *fotmob.Client, useMockData bool) tea.Cmd {
+func scheduleLiveRefresh(sessionID uint64, client *fotmob.Client, useMockData bool) tea.Cmd {
 	return tea.Tick(LiveRefreshInterval, func(t time.Time) tea.Msg {
 		if useMockData {
-			return liveRefreshMsg{matches: data.MockLiveMatches()}
+			return liveRefreshMsg{sessionID: sessionID, matches: data.MockLiveMatches()}
 		}
 
 		if client == nil {
-			return liveRefreshMsg{matches: nil}
+			return liveRefreshMsg{sessionID: sessionID, matches: nil}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -125,7 +129,7 @@ func scheduleLiveRefresh(client *fotmob.Client, useMockData bool) tea.Cmd {
 		client.Cache().ClearLive()
 		allMatches, err := client.MatchesByDateWithTabs(ctx, today, []string{"fixtures"})
 		if err != nil {
-			return liveRefreshMsg{matches: nil}
+			return liveRefreshMsg{sessionID: sessionID, matches: nil}
 		}
 
 		var live, upcoming []api.Match
@@ -137,17 +141,17 @@ func scheduleLiveRefresh(client *fotmob.Client, useMockData bool) tea.Cmd {
 			}
 		}
 
-		return liveRefreshMsg{matches: live, upcoming: upcoming}
+		return liveRefreshMsg{sessionID: sessionID, matches: live, upcoming: upcoming}
 	})
 }
 
 // fetchMatchDetails fetches match details from the API.
 // Returns mock data if useMockData is true, otherwise uses real API.
-func fetchMatchDetails(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
+func fetchMatchDetails(sessionID uint64, client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
 			details, _ := data.MockMatchDetails(matchID)
-			return matchDetailsMsg{details: details}
+			return matchDetailsMsg{sessionID: sessionID, details: details}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -155,20 +159,20 @@ func fetchMatchDetails(client *fotmob.Client, matchID int, useMockData bool) tea
 
 		details, err := client.MatchDetails(ctx, matchID)
 		if err != nil {
-			return matchDetailsMsg{details: nil, err: err}
+			return matchDetailsMsg{sessionID: sessionID, details: nil, err: err}
 		}
 
-		return matchDetailsMsg{details: details}
+		return matchDetailsMsg{sessionID: sessionID, details: details}
 	}
 }
 
 // fetchMatchDetailsForceRefresh fetches match details with cache bypass.
 // Forces fresh data from the API, ignoring any cached data.
-func fetchMatchDetailsForceRefresh(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
+func fetchMatchDetailsForceRefresh(sessionID uint64, client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
 			details, _ := data.MockMatchDetails(matchID)
-			return matchDetailsMsg{details: details}
+			return matchDetailsMsg{sessionID: sessionID, details: details}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -176,18 +180,18 @@ func fetchMatchDetailsForceRefresh(client *fotmob.Client, matchID int, useMockDa
 
 		details, err := client.MatchDetailsForceRefresh(ctx, matchID)
 		if err != nil {
-			return matchDetailsMsg{details: nil, err: err}
+			return matchDetailsMsg{sessionID: sessionID, details: nil, err: err}
 		}
 
-		return matchDetailsMsg{details: details}
+		return matchDetailsMsg{sessionID: sessionID, details: details}
 	}
 }
 
 // schedulePollTick schedules the next poll after 90 seconds.
 // When the tick fires, it sends pollTickMsg which triggers the actual API call.
-func schedulePollTick(matchID, gen int) tea.Cmd {
+func schedulePollTick(sessionID uint64, matchID, gen int) tea.Cmd {
 	return tea.Tick(90*time.Second, func(t time.Time) tea.Msg {
-		return pollTickMsg{matchID: matchID, gen: gen}
+		return pollTickMsg{sessionID: sessionID, matchID: matchID, gen: gen}
 	})
 }
 
@@ -195,20 +199,20 @@ func schedulePollTick(matchID, gen int) tea.Cmd {
 const PollSpinnerDuration = 1 * time.Second
 
 // schedulePollSpinnerHide schedules hiding the spinner after the display duration.
-func schedulePollSpinnerHide() tea.Cmd {
+func schedulePollSpinnerHide(sessionID uint64) tea.Cmd {
 	return tea.Tick(PollSpinnerDuration, func(t time.Time) tea.Msg {
-		return pollDisplayCompleteMsg{}
+		return pollDisplayCompleteMsg{sessionID: sessionID}
 	})
 }
 
 // fetchPollMatchDetails fetches match details for a poll refresh.
 // This is called when pollTickMsg is received, with loading state visible.
 // Uses force refresh to bypass cache and ensure fresh data for live matches.
-func fetchPollMatchDetails(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
+func fetchPollMatchDetails(sessionID uint64, client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
 			details, _ := data.MockMatchDetails(matchID)
-			return matchDetailsMsg{details: details}
+			return matchDetailsMsg{sessionID: sessionID, details: details}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -217,10 +221,10 @@ func fetchPollMatchDetails(client *fotmob.Client, matchID int, useMockData bool)
 		// Force refresh to bypass cache - live matches need fresh data
 		details, err := client.MatchDetailsForceRefresh(ctx, matchID)
 		if err != nil {
-			return matchDetailsMsg{details: nil, err: err}
+			return matchDetailsMsg{sessionID: sessionID, details: nil, err: err}
 		}
 
-		return matchDetailsMsg{details: details}
+		return matchDetailsMsg{sessionID: sessionID, details: details}
 	}
 }
 
@@ -228,20 +232,21 @@ func fetchPollMatchDetails(client *fotmob.Client, matchID int, useMockData bool)
 // dayIndex: 0 = today, 1 = yesterday, etc.
 // totalDays: total number of days to fetch (for isLast calculation)
 // This enables showing results immediately as each day's data arrives.
-func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMockData bool, dayIndex int, totalDays int) tea.Cmd {
+func fetchStatsDayData(sessionID uint64, parentCtx context.Context, client *fotmob.Client, useMockData bool, dayIndex int, totalDays int) tea.Cmd {
 	return func() tea.Msg {
 		isToday := dayIndex == 0
 		isLast := dayIndex == totalDays-1
 
 		// Check if cancelled before starting work
 		if parentCtx.Err() != nil {
-			return statsDayDataMsg{dayIndex: dayIndex, isToday: isToday, isLast: true}
+			return statsDayDataMsg{sessionID: sessionID, dayIndex: dayIndex, isToday: isToday, isLast: true}
 		}
 
 		if useMockData {
 			if isToday {
 				return statsDayDataMsg{
 					dayIndex: dayIndex,
+					sessionID: sessionID,
 					isToday:  true,
 					isLast:   isLast,
 					finished: data.MockFinishedMatches(),
@@ -250,6 +255,7 @@ func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMock
 			}
 			return statsDayDataMsg{
 				dayIndex: dayIndex,
+				sessionID: sessionID,
 				isToday:  false,
 				isLast:   isLast,
 				finished: nil,
@@ -259,6 +265,7 @@ func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMock
 
 		if client == nil {
 			return statsDayDataMsg{
+				sessionID: sessionID,
 				dayIndex: dayIndex,
 				isToday:  isToday,
 				isLast:   isLast,
@@ -287,6 +294,7 @@ func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMock
 
 		if err != nil {
 			return statsDayDataMsg{
+				sessionID: sessionID,
 				dayIndex: dayIndex,
 				isToday:  isToday,
 				isLast:   isLast,
@@ -308,6 +316,7 @@ func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMock
 		}
 
 		return statsDayDataMsg{
+			sessionID: sessionID,
 			dayIndex: dayIndex,
 			isToday:  isToday,
 			isLast:   isLast,
@@ -318,15 +327,15 @@ func fetchStatsDayData(parentCtx context.Context, client *fotmob.Client, useMock
 }
 
 // fetchStatsMatchDetailsFotmob fetches match details from FotMob API for stats view.
-func fetchStatsMatchDetailsFotmob(client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
+func fetchStatsMatchDetailsFotmob(sessionID uint64, client *fotmob.Client, matchID int, useMockData bool) tea.Cmd {
 	return func() tea.Msg {
 		if useMockData {
 			details, _ := data.MockFinishedMatchDetails(matchID)
-			return matchDetailsMsg{details: details}
+			return matchDetailsMsg{sessionID: sessionID, details: details}
 		}
 
 		if client == nil {
-			return matchDetailsMsg{details: nil}
+			return matchDetailsMsg{sessionID: sessionID, details: nil}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -334,20 +343,20 @@ func fetchStatsMatchDetailsFotmob(client *fotmob.Client, matchID int, useMockDat
 
 		details, err := client.MatchDetails(ctx, matchID)
 		if err != nil {
-			return matchDetailsMsg{details: nil, err: err}
+			return matchDetailsMsg{sessionID: sessionID, details: nil, err: err}
 		}
 
-		return matchDetailsMsg{details: details}
+		return matchDetailsMsg{sessionID: sessionID, details: details}
 	}
 }
 
 // fetchGoalLinks fetches goal replay links from Reddit for all goals in a match.
 // This is called on-demand when match details are loaded/displayed.
 // Links are cached persistently to avoid redundant API calls.
-func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.Cmd {
+func fetchGoalLinks(sessionID uint64, redditClient *reddit.Client, details *api.MatchDetails) tea.Cmd {
 	return func() tea.Msg {
 		if redditClient == nil || details == nil {
-			return goalLinksMsg{matchID: 0, links: nil}
+			return goalLinksMsg{sessionID: sessionID, matchID: 0, links: nil}
 		}
 
 		// Extract goal events from match details
@@ -400,13 +409,13 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 		}
 
 		if len(goals) == 0 {
-			return goalLinksMsg{matchID: details.ID, links: nil}
+			return goalLinksMsg{sessionID: sessionID, matchID: details.ID, links: nil}
 		}
 
 		// Fetch links for all goals (uses cache internally)
 		links := redditClient.GoalLinks(goals)
 
-		return goalLinksMsg{matchID: details.ID, links: links}
+		return goalLinksMsg{sessionID: sessionID, matchID: details.ID, links: links}
 	}
 }
 
@@ -414,10 +423,10 @@ func fetchGoalLinks(redditClient *reddit.Client, details *api.MatchDetails) tea.
 // Used to populate the standings dialog.
 // parentLeagueID is used for multi-season leagues (e.g., Liga MX Clausura -> Liga MX)
 // where the sub-league ID has no standings but the parent league does.
-func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, parentLeagueID int, homeTeamID, awayTeamID int) tea.Cmd {
+func fetchStandings(sessionID uint64, client *fotmob.Client, leagueID int, leagueName string, parentLeagueID int, homeTeamID, awayTeamID int) tea.Cmd {
 	return func() tea.Msg {
 		if client == nil {
-			return standingsMsg{leagueID: leagueID, standings: nil}
+			return standingsMsg{sessionID: sessionID, leagueID: leagueID, standings: nil}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -425,10 +434,11 @@ func fetchStandings(client *fotmob.Client, leagueID int, leagueName string, pare
 
 		standings, err := client.LeagueTableWithParent(ctx, leagueID, leagueName, parentLeagueID)
 		if err != nil {
-			return standingsMsg{leagueID: leagueID, standings: nil}
+			return standingsMsg{sessionID: sessionID, leagueID: leagueID, standings: nil}
 		}
 
 		return standingsMsg{
+			sessionID:  sessionID,
 			leagueID:   leagueID,
 			leagueName: leagueName,
 			standings:  standings,

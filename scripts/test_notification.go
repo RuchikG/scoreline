@@ -14,7 +14,7 @@ import (
 
 func main() {
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
-	fmt.Println("║              Golazo Notification Test                        ║")
+	fmt.Println("║              Scoreline Notification Test                        ║")
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 

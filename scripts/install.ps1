@@ -1,5 +1,5 @@
-# Golazo Installer for Windows
-# Run with: irm https://raw.githubusercontent.com/0xjuanma/golazo/main/scripts/install.ps1 | iex
+# Scoreline Installer for Windows
+# Run with: irm https://raw.githubusercontent.com/RuchikG/scoreline/main/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
@@ -10,8 +10,8 @@ $asciiLogo = @"
 ╱╱╱╱  ▀▀▀▀   ▀▀▀  ▀▀▀▀ ▀       ▀ ▀▀▀▀▀  ▀▀▀  ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱  
 "@
 
-$repo = "0xjuanma/golazo"
-$binaryName = "golazo"
+$repo = "RuchikG/scoreline"
+$binaryName = "scoreline"
 
 # Print header
 Write-Host $asciiLogo -ForegroundColor Cyan
@@ -50,7 +50,7 @@ $fileName = "$binaryName-windows-$arch.exe"
 $url = "https://github.com/$repo/releases/download/$latest/$fileName"
 
 # Determine install directory
-$installDir = "$env:LOCALAPPDATA\Programs\golazo"
+$installDir = "$env:LOCALAPPDATA\Programs\scoreline"
 if (-not (Test-Path $installDir)) {
     New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 }

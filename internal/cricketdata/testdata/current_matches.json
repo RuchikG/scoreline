@@ -1,0 +1,17 @@
+{
+  "data": [
+    {
+      "id": "sample-current-1",
+      "name": "India vs Australia",
+      "matchType": "t20",
+      "status": "India need 36 runs in 28 balls",
+      "venue": "Wankhede Stadium",
+      "dateTimeGMT": "2026-05-09T14:00:00Z",
+      "teams": ["India", "Australia"],
+      "score": [
+        {"r": 182, "w": 4, "o": 20.0, "inning": "Australia Inning 1"},
+        {"r": 147, "w": 3, "o": 15.2, "inning": "India Inning 1"}
+      ]
+    }
+  ]
+}

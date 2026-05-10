@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/fotmob"
 )
 
 func main() {

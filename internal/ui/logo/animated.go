@@ -1,4 +1,4 @@
-// Package logo renders a GOLAZO wordmark in a stylized way.
+// Package logo renders a SCORELINE wordmark in a stylized way.
 package logo
 
 import (

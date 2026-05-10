@@ -3,7 +3,7 @@ package data
 import (
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/RuchikG/scoreline/internal/api"
 )
 
 // MockMatchDetails returns detailed match information for a specific match ID.

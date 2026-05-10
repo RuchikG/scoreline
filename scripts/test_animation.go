@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/ui/logo"
+	"github.com/RuchikG/scoreline/internal/ui/logo"
 )
 
 const (
@@ -27,7 +27,7 @@ func main() {
 	fmt.Print("\033[2J\033[H")
 
 	fmt.Println("╔════════════════════════════════════════════════════════════════════════════════╗")
-	fmt.Println("║                    GOLAZO Logo Animation Test                                  ║")
+	fmt.Println("║                    SCORELINE Logo Animation Test                                  ║")
 	fmt.Println("║                                                                                ║")
 	fmt.Println("║  This script demonstrates all available animation styles.                      ║")
 	fmt.Println("║  Each animation will play once, then move to the next.                         ║")

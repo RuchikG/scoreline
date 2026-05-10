@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/ratelimit"
+	"github.com/RuchikG/scoreline/internal/ratelimit"
 )
 
 // DebugLogger is a function type for debug logging
@@ -41,7 +41,7 @@ func NewPublicJSONFetcher() *PublicJSONFetcher {
 			},
 		},
 		// Reddit requires a descriptive User-Agent
-		userAgent:   "golazo:v1.0.0 (by /u/golazo_app)",
+		userAgent:   "scoreline:v1.0.0 (by /u/scoreline_app)",
 		rateLimiter: ratelimit.NewFromRate(10), // 10 requests per minute for public API
 	}
 }

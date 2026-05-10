@@ -3,9 +3,9 @@ package ui
 import (
 	"fmt"
 
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -32,8 +32,8 @@ func NewSettingsState() *SettingsState {
 
 	// If no leagues are selected in settings, none are checked
 	// User sees unchecked = will use default leagues (Premier, La Liga, UCL)
-	if len(settings.SelectedLeagues) > 0 {
-		for _, id := range settings.SelectedLeagues {
+	if len(settings.Soccer.SelectedLeagues) > 0 {
+		for _, id := range settings.Soccer.SelectedLeagues {
 			selected[id] = true
 		}
 	}
@@ -144,11 +144,13 @@ func (s *SettingsState) Save() error {
 		}
 	}
 
-	settings := &data.Settings{
-		SelectedLeagues: selectedIDs,
+	settings, err := data.LoadSettings()
+	if err != nil {
+		settings = data.DefaultSettings()
 	}
+	settings.Soccer.SelectedLeagues = selectedIDs
 
-	err := data.SaveSettings(settings)
+	err = data.SaveSettings(settings)
 	if err == nil {
 		s.HasChanges = false
 	}

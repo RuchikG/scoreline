@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/fotmob"
 )
 
 // Validates the full match data pipeline: league page fetch -> match list -> match details.

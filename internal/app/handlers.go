@@ -3,13 +3,297 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/fotmob"
-	"github.com/0xjuanma/golazo/internal/ui"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/cricket"
+	"github.com/RuchikG/scoreline/internal/cricketdata"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/sports"
+	"github.com/RuchikG/scoreline/internal/ui"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// handleSportSelectorKeys processes keyboard input for the sport selector.
+func (m model) handleSportSelectorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "j", "down":
+		if m.selected < 1 {
+			m.selected++
+		}
+	case "k", "up":
+		if m.selected > 0 {
+			m.selected--
+		}
+	case "enter":
+		if m.selected == 0 {
+			return m.selectSport(sports.Soccer)
+		}
+		return m.selectSport(sports.Cricket)
+	}
+	return m, nil
+}
+
+func (m model) selectSport(sport sports.Sport) (tea.Model, tea.Cmd) {
+	if m.loadCancel != nil {
+		m.loadCancel()
+	}
+	m.sportSessionID++
+	m.selectedSport = sport
+	m.selected = 0
+	m.loading = false
+	m.mainViewLoading = false
+	m.liveViewLoading = false
+	m.statsViewLoading = false
+	m.polling = false
+	m.matchDetails = nil
+	m.liveUpdates = nil
+	m.lastEvents = nil
+	m.lastHomeScore = 0
+	m.lastAwayScore = 0
+	m.cricketMatches = nil
+	m.cricketDetails = nil
+	m.cricketArchiveMatches = nil
+	m.cricketArchiveDetails = nil
+	m.cricketSettingsState = nil
+	_ = data.SaveSelectedSport(sport)
+
+	switch sport {
+	case sports.Soccer:
+		m.currentView = viewSoccerMain
+	case sports.Cricket:
+		m.currentView = viewCricketMain
+	default:
+		m.currentView = viewSportSelector
+	}
+	return m, nil
+}
+
+// handleCricketMainViewKeys processes keyboard input for the cricket main menu.
+func (m model) handleCricketMainViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "j", "down":
+		if m.selected < 2 {
+			m.selected++
+		}
+	case "k", "up":
+		if m.selected > 0 {
+			m.selected--
+		}
+	case "enter":
+		switch m.selected {
+		case 0:
+			m.currentView = viewCricketLive
+			m.selected = 0
+			m.cricketMatches = nil
+			m.cricketDetails = nil
+			m.lastError = ""
+			m.loading = true
+			return m, fetchCricketLiveMatches(m.sportSessionID, m.cricketClient, m.useMockData)
+		case 1:
+			m.currentView = viewCricketArchives
+			m.selected = 0
+			m.cricketArchiveMatches = nil
+			m.cricketArchiveDetails = nil
+			m.lastError = ""
+			m.loading = true
+			settings, err := data.LoadSettings()
+			if err != nil {
+				settings = data.DefaultSettings()
+			}
+			return m, loadCricketArchiveMatches(m.sportSessionID, m.cricsheetClient, settings.Cricket, m.useMockData)
+		case 2:
+			m.currentView = viewCricketSettings
+			m.cricketSettingsState = ui.NewCricketSettingsState()
+			m.lastError = ""
+		}
+		m.selected = 0
+	}
+	return m, nil
+}
+
+func (m model) handleCricketLiveMatches(msg cricketLiveMatchesMsg) (tea.Model, tea.Cmd) {
+	m.loading = false
+	if msg.err != nil {
+		m.lastError = constants.ErrorLoadFailed
+		return m, nil
+	}
+	m.lastError = ""
+	m.cricketMatches = msg.matches
+	m.selected = 0
+	if len(m.cricketMatches) > 0 {
+		m.cricketDetails = m.cricketDetailsForSelected()
+	}
+	return m, nil
+}
+
+// handleCricketLiveKeys processes keyboard input for the mock cricket dashboard.
+func (m model) handleCricketLiveKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if len(m.cricketMatches) == 0 {
+		return m, nil
+	}
+	switch msg.String() {
+	case "j", "down":
+		if m.selected < len(m.cricketMatches)-1 {
+			m.selected++
+			m.cricketDetails = m.cricketDetailsForSelected()
+		}
+	case "k", "up":
+		if m.selected > 0 {
+			m.selected--
+			m.cricketDetails = m.cricketDetailsForSelected()
+		}
+	}
+	return m, nil
+}
+
+func (m model) handleCricketArchiveMatches(msg cricketArchiveMatchesMsg) (tea.Model, tea.Cmd) {
+	m.loading = false
+	if msg.err != nil {
+		m.lastError = "Unable to load Cricsheet archive cache"
+		return m, nil
+	}
+	m.lastError = ""
+	m.cricketArchiveMatches = msg.matches
+	m.selected = 0
+	if len(m.cricketArchiveMatches) > 0 {
+		m.cricketArchiveDetails = m.cricketArchiveDetailsForSelected()
+	}
+	return m, nil
+}
+
+func (m model) handleCricketArchiveRefresh(msg cricketArchiveRefreshMsg) (tea.Model, tea.Cmd) {
+	m.loading = false
+	if msg.err != nil {
+		m.lastError = "Unable to refresh Cricsheet archive cache"
+		return m, nil
+	}
+	settings, err := data.LoadSettings()
+	if err != nil {
+		settings = data.DefaultSettings()
+	}
+	m.loading = true
+	return m, loadCricketArchiveMatches(m.sportSessionID, m.cricsheetClient, settings.Cricket, m.useMockData)
+}
+
+// handleCricketArchiveKeys processes keyboard input for the archive browser.
+func (m model) handleCricketArchiveKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "j", "down":
+		if m.selected < len(m.cricketArchiveMatches)-1 {
+			m.selected++
+			m.cricketArchiveDetails = m.cricketArchiveDetailsForSelected()
+		}
+	case "k", "up":
+		if m.selected > 0 {
+			m.selected--
+			m.cricketArchiveDetails = m.cricketArchiveDetailsForSelected()
+		}
+	case "r":
+		if m.useMockData {
+			settings, err := data.LoadSettings()
+			if err != nil {
+				settings = data.DefaultSettings()
+			}
+			m.loading = true
+			return m, loadCricketArchiveMatches(m.sportSessionID, m.cricsheetClient, settings.Cricket, true)
+		}
+		m.loading = true
+		m.lastError = ""
+		return m, refreshCricketArchive(m.sportSessionID, m.cricsheetClient)
+	}
+	return m, nil
+}
+
+// handleCricketSettingsKeys processes keyboard input for cricket settings.
+func (m model) handleCricketSettingsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.cricketSettingsState == nil {
+		m.cricketSettingsState = ui.NewCricketSettingsState()
+	}
+	if m.cricketSettingsState.Editing {
+		switch msg.String() {
+		case "enter":
+			m.cricketSettingsState.CommitEdit()
+		case "esc":
+			m.cricketSettingsState.CancelEdit()
+		case "backspace", "ctrl+h":
+			m.cricketSettingsState.BackspaceEditText()
+		default:
+			if len(msg.Runes) > 0 {
+				m.cricketSettingsState.InsertEditText(string(msg.Runes))
+			}
+		}
+		return m, nil
+	}
+	switch msg.String() {
+	case "j", "down":
+		m.cricketSettingsState.Move(1)
+	case "k", "up":
+		m.cricketSettingsState.Move(-1)
+	case " ":
+		m.cricketSettingsState.Toggle()
+	case "h", "left":
+		m.cricketSettingsState.Adjust(-1)
+	case "l", "right":
+		m.cricketSettingsState.Adjust(1)
+	case "s":
+		if err := m.cricketSettingsState.Save(); err != nil {
+			m.debugLog(fmt.Sprintf("failed to save cricket settings: %v", err))
+			m.lastError = "Unable to save cricket settings"
+			return m, nil
+		}
+		m.cricketClient = cricketdata.NewClientFromEnv(m.cricketSettingsState.Settings.APIKeyEnv)
+		m.lastError = ""
+		return m, nil
+	case "enter":
+		if m.cricketSettingsState.Cursor >= 6 {
+			m.cricketSettingsState.BeginEdit()
+			return m, nil
+		}
+		if err := m.cricketSettingsState.Save(); err != nil {
+			m.debugLog(fmt.Sprintf("failed to save cricket settings: %v", err))
+			m.lastError = "Unable to save cricket settings"
+			return m, nil
+		}
+		m.cricketClient = cricketdata.NewClientFromEnv(m.cricketSettingsState.Settings.APIKeyEnv)
+		m.lastError = ""
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m model) cricketDetailsForSelected() *cricket.MatchDetails {
+	if m.selected < 0 || m.selected >= len(m.cricketMatches) {
+		return nil
+	}
+	if m.useMockData {
+		return data.MockCricketMatchDetails(m.cricketMatches[m.selected].ID)
+	}
+	return &cricket.MatchDetails{
+		Match:       m.cricketMatches[m.selected],
+		LastUpdated: time.Now(),
+	}
+}
+
+func (m model) cricketArchiveDetailsForSelected() *cricket.MatchDetails {
+	if m.selected < 0 || m.selected >= len(m.cricketArchiveMatches) {
+		return nil
+	}
+	if m.useMockData {
+		return data.MockCricketArchiveDetails(m.cricketArchiveMatches[m.selected].ID)
+	}
+	if m.cricsheetClient == nil {
+		return &cricket.MatchDetails{Match: m.cricketArchiveMatches[m.selected], LastUpdated: time.Now()}
+	}
+	details, err := m.cricsheetClient.Details(m.cricketArchiveMatches[m.selected].ID)
+	if err != nil {
+		return &cricket.MatchDetails{Match: m.cricketArchiveMatches[m.selected], LastUpdated: time.Now()}
+	}
+	return details
+}
 
 // handleMainViewKeys processes keyboard input for the main menu view.
 // Handles navigation (up/down) and selection (enter) to switch between views.
@@ -60,7 +344,7 @@ func (m model) handleMainViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Start API calls immediately while showing main view spinner
 		cmds := []tea.Cmd{
 			m.spinner.Tick,
-			performMainViewCheck(m.selected),
+			performMainViewCheck(m.sportSessionID, m.selected),
 		}
 
 		switch m.selected {
@@ -73,7 +357,7 @@ func (m model) handleMainViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statsMatchesList.SetItems([]list.Item{}) // Clear list
 			cmds = append(cmds, ui.SpinnerTick())
 			// Start fetching day 0 (today) first - results shown immediately when it completes
-			cmds = append(cmds, fetchStatsDayData(m.loadCtx, m.fotmobClient, m.useMockData, 0, fotmob.StatsDataDays))
+			cmds = append(cmds, fetchStatsDayData(m.sportSessionID, m.loadCtx, m.fotmobClient, m.useMockData, 0, fotmob.StatsDataDays))
 		case 1: // Live Matches view - preload live matches progressively (parallel batches)
 			m.liveViewLoading = true
 			m.loading = true
@@ -86,7 +370,7 @@ func (m model) handleMainViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.liveMatchesList.SetItems([]list.Item{})
 			cmds = append(cmds, ui.SpinnerTick())
 			// Start fetching batch 0 (4 leagues in parallel) - results shown when batch completes
-			cmds = append(cmds, fetchLiveBatchData(m.loadCtx, m.fotmobClient, m.useMockData, 0))
+			cmds = append(cmds, fetchLiveBatchData(m.sportSessionID, m.loadCtx, m.fotmobClient, m.useMockData, 0))
 		}
 
 		return m, tea.Batch(cmds...)
@@ -153,7 +437,7 @@ func (m model) handleStatsViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loadCancel()
 	}
 	m.loadCtx, m.loadCancel = context.WithCancel(context.Background())
-	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchStatsDayData(m.loadCtx, m.fotmobClient, m.useMockData, 0, fotmob.StatsDataDays))
+	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchStatsDayData(m.sportSessionID, m.loadCtx, m.fotmobClient, m.useMockData, 0, fotmob.StatsDataDays))
 }
 
 // loadMatchDetails loads match details for the live matches view.
@@ -176,9 +460,9 @@ func (m model) loadMatchDetailsWithRefresh(matchID int, forceRefresh bool) (tea.
 
 	var cmd tea.Cmd
 	if forceRefresh {
-		cmd = fetchMatchDetailsForceRefresh(m.fotmobClient, matchID, m.useMockData)
+		cmd = fetchMatchDetailsForceRefresh(m.sportSessionID, m.fotmobClient, matchID, m.useMockData)
 	} else {
-		cmd = fetchMatchDetails(m.fotmobClient, matchID, m.useMockData)
+		cmd = fetchMatchDetails(m.sportSessionID, m.fotmobClient, matchID, m.useMockData)
 	}
 
 	if chainAlive {
@@ -214,7 +498,7 @@ func (m model) loadStatsMatchDetailsWithRefresh(matchID int, forceRefresh bool) 
 	m.loading = true
 	m.statsViewLoading = true
 	m.debugLog(fmt.Sprintf("Fetching match details from API for ID: %d", matchID))
-	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchStatsMatchDetailsFotmob(m.fotmobClient, matchID, m.useMockData))
+	return m, tea.Batch(m.spinner.Tick, ui.SpinnerTick(), fetchStatsMatchDetailsFotmob(m.sportSessionID, m.fotmobClient, matchID, m.useMockData))
 }
 
 // handleSettingsViewKeys processes keyboard input for the settings view.

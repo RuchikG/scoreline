@@ -14,57 +14,117 @@ import (
 )
 
 const (
-	configDir = ".golazo"
+	appName         = "scoreline"
+	legacyAppName   = "golazo"
+	configDir       = ".scoreline"
+	legacyConfigDir = ".golazo"
 )
 
-// ConfigDir returns the path to the golazo config directory.
-// On Linux, follows XDG Base Directory spec (~/.config/golazo).
-// On other systems (macOS, Windows), uses ~/.golazo.
+// ConfigDir returns the path to the scoreline config directory.
+// On Linux, follows XDG Base Directory spec (~/.config/scoreline).
+// On other systems (macOS, Windows), uses ~/.scoreline.
 func ConfigDir() (string, error) {
+	return configDirFor(appName, configDir, true)
+}
+
+// LegacyConfigDir returns the old golazo config directory without creating it.
+func LegacyConfigDir() (string, error) {
+	return configDirFor(legacyAppName, legacyConfigDir, false)
+}
+
+func configDirFor(xdgName, dotName string, create bool) (string, error) {
 	var configPath string
 
 	if runtime.GOOS == "linux" {
 		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
-			configPath = filepath.Join(xdgConfig, "golazo")
+			configPath = filepath.Join(xdgConfig, xdgName)
 		} else {
 			homeDir, err := os.UserHomeDir()
 			if err != nil {
 				return "", fmt.Errorf("get home directory: %w", err)
 			}
-			configPath = filepath.Join(homeDir, ".config", "golazo")
+			configPath = filepath.Join(homeDir, ".config", xdgName)
 		}
 	} else {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("get home directory: %w", err)
 		}
-		configPath = filepath.Join(homeDir, configDir)
+		configPath = filepath.Join(homeDir, dotName)
 	}
 
-	if err := os.MkdirAll(configPath, 0755); err != nil {
-		return "", fmt.Errorf("create config directory: %w", err)
+	if create {
+		if err := os.MkdirAll(configPath, 0755); err != nil {
+			return "", fmt.Errorf("create config directory: %w", err)
+		}
 	}
 
 	return configPath, nil
 }
 
-// CacheDir returns the path to the golazo cache directory.
+// CacheDir returns the path to the scoreline cache directory.
 // Uses os.UserCacheDir() which returns:
-//   - Linux: ~/.cache/golazo (or $XDG_CACHE_HOME/golazo)
-//   - macOS: ~/Library/Caches/golazo
-//   - Windows: %LocalAppData%/golazo
+//   - Linux: ~/.cache/scoreline (or $XDG_CACHE_HOME/scoreline)
+//   - macOS: ~/Library/Caches/scoreline
+//   - Windows: %LocalAppData%/scoreline
 func CacheDir() (string, error) {
+	return cacheDirFor(appName, true)
+}
+
+// LegacyCacheDir returns the old golazo cache directory without creating it.
+func LegacyCacheDir() (string, error) {
+	return cacheDirFor(legacyAppName, false)
+}
+
+func cacheDirFor(name string, create bool) (string, error) {
 	userCache, err := os.UserCacheDir()
 	if err != nil {
 		return "", fmt.Errorf("get user cache directory: %w", err)
 	}
 
-	cachePath := filepath.Join(userCache, "golazo")
-	if err := os.MkdirAll(cachePath, 0755); err != nil {
-		return "", fmt.Errorf("create cache directory: %w", err)
+	cachePath := filepath.Join(userCache, name)
+	if create {
+		if err := os.MkdirAll(cachePath, 0755); err != nil {
+			return "", fmt.Errorf("create cache directory: %w", err)
+		}
 	}
 
 	return cachePath, nil
+}
+
+// LegacyCacheFile returns the matching legacy cache file when it exists.
+func LegacyCacheFile(name string) (string, bool) {
+	dir, err := LegacyCacheDir()
+	if err != nil {
+		return "", false
+	}
+	path := filepath.Join(dir, name)
+	if _, err := os.Stat(path); err == nil {
+		return path, true
+	}
+	return "", false
+}
+
+// ScorelineCacheFile returns a path inside the current cache directory.
+func ScorelineCacheFile(name string) (string, error) {
+	dir, err := CacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
+}
+
+// EnsureCacheSubdir returns a named cache subdirectory, creating it if needed.
+func EnsureCacheSubdir(name string) (string, error) {
+	dir, err := CacheDir()
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, name)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return "", fmt.Errorf("create cache subdirectory: %w", err)
+	}
+	return path, nil
 }
 
 // MockDataPath returns the path to the mock data file.
@@ -177,13 +237,13 @@ func CheckLatestVersion() (string, error) {
 		Timeout: 10 * time.Second,
 	}
 
-	resp, err := client.Get("https://github.com/0xjuanma/golazo/releases/latest")
+	resp, err := client.Get("https://github.com/RuchikG/scoreline/releases/latest")
 	if err != nil {
 		return "", fmt.Errorf("fetch latest release: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// GitHub redirects to: https://github.com/0xjuanma/golazo/releases/tag/v1.2.3
+	// GitHub redirects to: https://github.com/RuchikG/scoreline/releases/tag/v1.2.3
 	// Extract version from the final URL
 	finalURL := resp.Request.URL.String()
 

@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	"github.com/0xjuanma/golazo/internal/reddit"
-	"github.com/0xjuanma/golazo/internal/ui"
+	"github.com/RuchikG/scoreline/internal/reddit"
+	"github.com/RuchikG/scoreline/internal/ui"
 )
 
 // View renders the current application state.
@@ -21,6 +21,9 @@ func (m model) View() string {
 	}
 
 	switch m.currentView {
+	case viewSportSelector:
+		return ui.RenderSportSelector(m.width, m.height, m.selected, m.getStatusBannerType(), m.animatedLogo)
+
 	case viewMain:
 		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading, m.getStatusBannerType(), m.animatedLogo)
 
@@ -68,8 +71,20 @@ func (m model) View() string {
 	case viewSettings:
 		return ui.RenderSettingsView(m.width, m.height, m.settingsState, m.getStatusBannerType())
 
+	case viewCricketMain:
+		return ui.RenderCricketMenu(m.width, m.height, m.selected, m.getStatusBannerType(), m.animatedLogo)
+
+	case viewCricketLive:
+		return ui.RenderCricketLiveView(m.width, m.height, m.cricketMatches, m.selected, m.cricketDetails, m.getStatusBannerType())
+
+	case viewCricketArchives:
+		return ui.RenderCricketArchivesView(m.width, m.height, m.cricketArchiveMatches, m.selected, m.cricketArchiveDetails, m.loading, m.lastError, m.getStatusBannerType())
+
+	case viewCricketSettings:
+		return ui.RenderCricketSettingsView(m.width, m.height, m.cricketSettingsState, m.cricketClient != nil && m.cricketClient.HasAPIKey(), m.getStatusBannerType())
+
 	default:
-		return ui.RenderMainMenu(m.width, m.height, m.selected, m.spinner, m.randomSpinner, m.mainViewLoading, m.getStatusBannerType(), m.animatedLogo)
+		return ui.RenderSportSelector(m.width, m.height, m.selected, m.getStatusBannerType(), m.animatedLogo)
 	}
 }
 

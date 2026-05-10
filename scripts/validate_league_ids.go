@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/data"
+	"github.com/RuchikG/scoreline/internal/data"
 )
 
 // LeagueInfo and region constants are imported from the data package

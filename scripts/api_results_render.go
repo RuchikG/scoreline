@@ -1,4 +1,4 @@
-// api_results_render.go - Render fetched match data using Golazo's stats UI (right panel)
+// api_results_render.go - Render fetched match data using Scoreline's stats UI (right panel)
 //
 // Usage:
 //   go run scripts/api_results_render.go <league_id> <date> [season]
@@ -9,7 +9,7 @@
 //   go run scripts/api_results_render.go 77 2022-12-18 2022      # World Cup 2022 Final (Argentina vs France)
 //
 // This script fetches match data and renders it using the same UI components
-// as the Golazo app's stats view (right panel with match details).
+// as the Scoreline app's stats view (right panel with match details).
 //
 // League IDs (common):
 //   47 - Premier League
@@ -33,8 +33,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/debug"
-	"github.com/0xjuanma/golazo/internal/ui"
+	"github.com/RuchikG/scoreline/internal/debug"
+	"github.com/RuchikG/scoreline/internal/ui"
 	"golang.org/x/term"
 )
 
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
-	fmt.Println("║          Golazo Stats Panel Renderer                         ║")
+	fmt.Println("║          Scoreline Stats Panel Renderer                         ║")
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 	fmt.Printf("League ID: %d\n", leagueID)
@@ -104,7 +104,7 @@ func main() {
 		panelHeight = 30
 	}
 
-	// Render each match using the Golazo stats panel UI
+	// Render each match using the Scoreline stats panel UI
 	for i, match := range matches {
 		fmt.Println(strings.Repeat("═", panelWidth))
 		fmt.Printf("Match %d of %d: %s vs %s\n", i+1, len(matches), match.HomeTeam.Name, match.AwayTeam.Name)
@@ -124,7 +124,7 @@ func main() {
 			continue
 		}
 
-		// Render using Golazo's stats panel UI
+		// Render using Scoreline's stats panel UI
 		rendered := ui.RenderMatchDetailsPanel(panelWidth, panelHeight, details)
 		fmt.Println(rendered)
 		fmt.Println()
@@ -186,7 +186,7 @@ func printUsage() {
 	fmt.Println(`
 Usage: go run scripts/api_results_render.go <league_id> <date> [season]
 
-Renders fetched match data using Golazo's stats UI (right panel).
+Renders fetched match data using Scoreline's stats UI (right panel).
 
 Arguments:
   league_id   The FotMob league ID (integer)

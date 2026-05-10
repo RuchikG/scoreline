@@ -1,12 +1,12 @@
-// Package assets provides embedded static assets for the golazo application.
+// Package assets provides embedded static assets for the scoreline application.
 package assets
 
 import (
 	_ "embed"
 )
 
-// Logo is the golazo logo PNG image, embedded at compile time.
+// Logo is the scoreline logo PNG image, embedded at compile time.
 // Used for desktop notifications on Linux and Windows.
 //
-//go:embed golazo-logo.png
+//go:embed scoreline-logo.png
 var Logo []byte

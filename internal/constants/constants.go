@@ -14,7 +14,7 @@ const (
 	StatusBannerNone StatusBannerType = iota
 	// StatusBannerDebug indicates debug mode is active and logs are being written.
 	StatusBannerDebug
-	// StatusBannerNewVersion indicates a new version of Golazo is available.
+	// StatusBannerNewVersion indicates a new version of Scoreline is available.
 	StatusBannerNewVersion
 	// StatusBannerDev indicates this is a development build.
 	StatusBannerDev

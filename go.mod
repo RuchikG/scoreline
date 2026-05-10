@@ -1,4 +1,4 @@
-module github.com/0xjuanma/golazo
+module github.com/RuchikG/scoreline
 
 go 1.25.0
 

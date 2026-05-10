@@ -7,7 +7,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/fotmob"
 )
 
 func main() {
@@ -69,7 +69,7 @@ func main() {
 		fmt.Println("Clearing all cached match details...")
 		cache.ClearDetails()
 		fmt.Println("✅ All match details cache cleared")
-		fmt.Println("💡 Note: If golazo app is running, restart it to clear its internal cache too.")
+		fmt.Println("💡 Note: If scoreline app is running, restart it to clear its internal cache too.")
 		return
 	}
 
@@ -77,7 +77,7 @@ func main() {
 	fmt.Printf("Clearing cache for match ID: %d...\n", matchID)
 	cache.ClearMatchDetails(matchID)
 	fmt.Printf("✅ Match %d cache cleared\n", matchID)
-	fmt.Println("💡 Note: If golazo app is running, restart it to clear its internal cache too.")
+	fmt.Println("💡 Note: If scoreline app is running, restart it to clear its internal cache too.")
 
 	// Test fetching fresh data
 	fmt.Printf("\nTesting fresh data retrieval for match %d...\n", matchID)

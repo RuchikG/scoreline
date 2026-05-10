@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Golazo/1.0)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Scoreline/1.0)")
 
 	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)

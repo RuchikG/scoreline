@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/lipgloss"
 )

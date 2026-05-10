@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/RuchikG/scoreline/internal/api"
 )
 
 // StatsData holds all matches data for the stats view.

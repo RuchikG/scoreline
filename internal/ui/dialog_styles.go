@@ -3,7 +3,7 @@ package ui
 import (
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/lipgloss"
 )
 

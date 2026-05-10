@@ -3,7 +3,7 @@ package fotmob
 import (
 	"testing"
 
-	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/RuchikG/scoreline/internal/api"
 )
 
 func TestParseInt(t *testing.T) {

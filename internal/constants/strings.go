@@ -5,6 +5,10 @@ const (
 	MenuStats       = "Finished Matches"
 	MenuLiveMatches = "Live Matches"
 	MenuSettings    = "Settings"
+	MenuSoccer      = "Soccer"
+	MenuCricket     = "Cricket"
+	MenuCricketLive = "Live Dashboard"
+	MenuArchives    = "Archives"
 )
 
 // Panel titles
@@ -39,6 +43,9 @@ const (
 // Help text
 const (
 	HelpMainMenu           = "↑/↓: navigate  Enter: select  q: quit"
+	HelpSportSelector      = "↑/↓: navigate  Enter: select  q: quit"
+	HelpSportMainMenu      = "↑/↓: navigate  Enter: select  Esc: sports  q: quit"
+	HelpCricketPlaceholder = "Esc: back  q: quit"
 	HelpMatchesView        = "↑/↓: navigate  r: refresh  x: statistics  s: standings  /: filter  Esc: back  q: quit"
 	HelpSettingsView       = "↑/↓: navigate  ←/→: switch tabs  Space: toggle  /: filter  Enter: save  Esc: back"
 	HelpStatsView          = "h/l: date range  j/k: navigate  Tab: focus details  ↑/↓: scroll when focused  r: refresh details  /: filter  Esc: back"
@@ -70,7 +77,7 @@ const (
 // Notification text
 const (
 	// NotificationTitleGoal is the title shown in goal notifications.
-	NotificationTitleGoal = "⚽ GOLAZO!"
+	NotificationTitleGoal = "Goal"
 )
 
 // Stats labels

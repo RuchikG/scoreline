@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/data"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/data"
 	"github.com/charmbracelet/bubbles/list"
 )
 

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/api"
+	"github.com/RuchikG/scoreline/internal/api"
 )
 
 // fetchMatchDetailsFromPage fetches match details by scraping the match page HTML

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RuchikG/scoreline/internal/sports"
 	"gopkg.in/yaml.v3"
 )
 
@@ -14,7 +15,9 @@ func TestSettings_YAMLRoundtrip(t *testing.T) {
 	path := filepath.Join(dir, "settings.yaml")
 
 	original := &Settings{
-		SelectedLeagues: []int{47, 87, 42, 55},
+		SelectedSport: sports.Soccer,
+		Soccer:        SoccerSettings{SelectedLeagues: []int{47, 87, 42, 55}},
+		Cricket:       DefaultCricketSettings(),
 	}
 
 	data, err := yaml.Marshal(original)
@@ -36,12 +39,13 @@ func TestSettings_YAMLRoundtrip(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if len(loaded.SelectedLeagues) != len(original.SelectedLeagues) {
-		t.Fatalf("SelectedLeagues length = %d, want %d", len(loaded.SelectedLeagues), len(original.SelectedLeagues))
+	loaded = *normalizeSettings(&loaded)
+	if len(loaded.Soccer.SelectedLeagues) != len(original.Soccer.SelectedLeagues) {
+		t.Fatalf("SelectedLeagues length = %d, want %d", len(loaded.Soccer.SelectedLeagues), len(original.Soccer.SelectedLeagues))
 	}
-	for i, id := range loaded.SelectedLeagues {
-		if id != original.SelectedLeagues[i] {
-			t.Errorf("SelectedLeagues[%d] = %d, want %d", i, id, original.SelectedLeagues[i])
+	for i, id := range loaded.Soccer.SelectedLeagues {
+		if id != original.Soccer.SelectedLeagues[i] {
+			t.Errorf("SelectedLeagues[%d] = %d, want %d", i, id, original.Soccer.SelectedLeagues[i])
 		}
 	}
 }
@@ -59,8 +63,9 @@ func TestSettings_YAMLRoundtrip_Empty(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if len(loaded.SelectedLeagues) != 0 {
-		t.Errorf("SelectedLeagues length = %d, want 0", len(loaded.SelectedLeagues))
+	loaded = *normalizeSettings(&loaded)
+	if len(loaded.Soccer.SelectedLeagues) != 0 {
+		t.Errorf("SelectedLeagues length = %d, want 0", len(loaded.Soccer.SelectedLeagues))
 	}
 }
 
@@ -79,8 +84,47 @@ func TestSettings_MissingFileFallback(t *testing.T) {
 		settings = Settings{}
 	}
 
-	if len(settings.SelectedLeagues) != 0 {
-		t.Errorf("default settings should have empty SelectedLeagues, got %d", len(settings.SelectedLeagues))
+	if len(settings.Soccer.SelectedLeagues) != 0 {
+		t.Errorf("default settings should have empty SelectedLeagues, got %d", len(settings.Soccer.SelectedLeagues))
+	}
+}
+
+func TestLoadSettingsMigratesLegacySelectedLeagues(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "xdg"))
+
+	legacyPath, err := LegacySettingsPath()
+	if err != nil {
+		t.Fatalf("LegacySettingsPath: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(legacyPath), 0755); err != nil {
+		t.Fatalf("mkdir legacy: %v", err)
+	}
+	if err := os.WriteFile(legacyPath, []byte("selected_leagues:\n  - 47\n  - 87\n"), 0644); err != nil {
+		t.Fatalf("write legacy: %v", err)
+	}
+
+	settings, err := LoadSettings()
+	if err != nil {
+		t.Fatalf("LoadSettings: %v", err)
+	}
+	if settings.SelectedSport != sports.Soccer {
+		t.Fatalf("SelectedSport = %q, want soccer", settings.SelectedSport)
+	}
+	if len(settings.Soccer.SelectedLeagues) != 2 || settings.Soccer.SelectedLeagues[0] != 47 || settings.Soccer.SelectedLeagues[1] != 87 {
+		t.Fatalf("migrated leagues = %#v", settings.Soccer.SelectedLeagues)
+	}
+
+	newPath, err := SettingsPath()
+	if err != nil {
+		t.Fatalf("SettingsPath: %v", err)
+	}
+	if _, err := os.Stat(newPath); err != nil {
+		t.Fatalf("new settings file was not written: %v", err)
+	}
+	if _, err := os.Stat(legacyPath); err != nil {
+		t.Fatalf("legacy settings should remain in place: %v", err)
 	}
 }
 
@@ -99,7 +143,7 @@ func TestSettings_IsLeagueSelected(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Settings{SelectedLeagues: tt.leagues}
+			s := &Settings{Soccer: SoccerSettings{SelectedLeagues: tt.leagues}}
 			got := s.IsLeagueSelected(tt.checkID)
 			if got != tt.expected {
 				t.Errorf("IsLeagueSelected(%d) = %v, want %v", tt.checkID, got, tt.expected)

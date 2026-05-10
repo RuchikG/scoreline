@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -23,9 +23,9 @@ func renderStatusBanner(bannerType constants.StatusBannerType, width int) string
 
 	switch bannerType {
 	case constants.StatusBannerDebug:
-		message = "[DEBUG MODE] Logs: ~/.golazo/golazo_debug.log"
+		message = "[DEBUG MODE] Logs: ~/.scoreline/scoreline_debug.log"
 	case constants.StatusBannerNewVersion:
-		message = "New Version Available! Run 'golazo --update'"
+		message = "New Version Available! Run 'scoreline --update'"
 	case constants.StatusBannerDev:
 		message = "[DEV BUILD] This is a development version"
 	case constants.StatusBannerNone:

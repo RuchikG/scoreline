@@ -1,11 +1,11 @@
 package ui
 
 import (
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Neon design styles - Golazo red/cyan theme
+// Neon design styles - Scoreline red/cyan theme
 // Bold, vibrant design with thick borders and high contrast.
 
 // Card symbols - consistent across all views
@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	// Neon color palette - Golazo brand
+	// Neon color palette - Scoreline brand
 	// Primary colors - adaptive for light/dark terminals
 	neonRed    = lipgloss.AdaptiveColor{Light: "124", Dark: "196"} // Dark red / Bright red
 	neonCyan   = lipgloss.AdaptiveColor{Light: "23", Dark: "51"}   // Darker cyan / Electric cyan

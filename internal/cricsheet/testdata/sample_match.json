@@ -1,0 +1,17 @@
+{
+  "meta": {
+    "data_version": "1.1.0"
+  },
+  "info": {
+    "dates": ["2026-05-08"],
+    "event": {
+      "name": "Sample T20"
+    },
+    "match_type": "T20",
+    "teams": ["India", "Australia"],
+    "venue": "Sample Ground",
+    "outcome": {
+      "winner": "India"
+    }
+  }
+}

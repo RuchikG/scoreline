@@ -1,4 +1,4 @@
-// Package ui provides terminal user interface components for golazo.
+// Package ui provides terminal user interface components for scoreline.
 package ui
 
 import (

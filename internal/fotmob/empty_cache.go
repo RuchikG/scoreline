@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/data"
+	"github.com/RuchikG/scoreline/internal/data"
 )
 
 const (
@@ -39,7 +39,7 @@ type EmptyCacheEntry struct {
 
 // NewEmptyResultsCache creates a new cache instance.
 // It loads existing data from the config directory if available.
-// On Linux, uses XDG spec (~/.config/golazo). On other systems, uses ~/.golazo.
+// On Linux, uses XDG spec (~/.config/scoreline). On other systems, uses ~/.scoreline.
 func NewEmptyResultsCache() (*EmptyResultsCache, error) {
 	configDir, err := data.ConfigDir()
 	if err != nil {

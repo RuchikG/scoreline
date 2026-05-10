@@ -29,8 +29,8 @@ ASCII_LOGO="╱╱╱╱ ▄▀▀▀▀  ▄▀▀▀▄ █     ▄▀▀▀�
 ╱╱╱╱ █   ▀█ █   █ █    █▀▀▀▀▀▀▀█  █▀▀  █   █ ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱ 
 ╱╱╱╱  ▀▀▀▀   ▀▀▀  ▀▀▀▀ ▀       ▀ ▀▀▀▀▀  ▀▀▀  ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱  "
 
-REPO="0xjuanma/golazo"
-BINARY_NAME="golazo"
+REPO="RuchikG/scoreline"
+BINARY_NAME="scoreline"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 
 # Print ASCII art header with cyan color

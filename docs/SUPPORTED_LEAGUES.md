@@ -1,8 +1,8 @@
 # Supported Leagues
 
-Golazo supports **65+ leagues and competitions**. Customize your selection in Settings.
+Scoreline supports **65+ leagues and competitions**. Customize your selection in Settings.
 
-> **Missing your favourite league?** [Create an issue](https://github.com/0xjuanma/golazo/issues/new) and we'll add it!
+> **Missing your favourite league?** [Create an issue](https://github.com/RuchikG/scoreline/issues/new) and we'll add it!
 
 ## Europe — Top Leagues
 

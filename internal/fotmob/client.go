@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/ratelimit"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/ratelimit"
 )
 
 const (

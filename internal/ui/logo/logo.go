@@ -1,11 +1,10 @@
-// Package logo renders a GOLAZO wordmark in a stylized way.
+// Package logo renders the Scoreline wordmark in a stylized way.
 package logo
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/ui/design"
+	"github.com/RuchikG/scoreline/internal/ui/design"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 )
@@ -16,7 +15,7 @@ type letterform func(bool) string
 
 const diag = `╱`
 
-// Opts are the options for rendering the GOLAZO title art.
+// Opts are the options for rendering the Scoreline title art.
 type Opts struct {
 	FieldColorHex    string // diagonal lines color
 	GradientStartHex string // left gradient ramp point
@@ -35,100 +34,27 @@ func DefaultOpts() Opts {
 	}
 }
 
-// Render renders the GOLAZO logo.
+// Render renders the Scoreline logo.
 // The compact argument determines whether it renders compact (for sidebar)
 // or wider (for main pane).
 func Render(version string, compact bool, o Opts) string {
-	fg := func(hexColor string, s string) string {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color(hexColor)).Render(s)
-	}
-
-	// Title letterforms
-	const spacing = 1
-	letterforms := []letterform{
-		letterG,
-		letterO,
-		letterL,
-		letterA,
-		letterZ,
-		letterO,
-	}
-
-	// Randomly stretch one letter in wide mode
-	stretchIndex := -1
-	if !compact {
-		stretchIndex = cachedRandN(len(letterforms))
-	}
-
-	golazo := renderWord(spacing, stretchIndex, letterforms...)
-	golazoWidth := lipgloss.Width(golazo)
-
-	// Apply gradient to the title
-	b := new(strings.Builder)
-	for line := range strings.SplitSeq(golazo, "\n") {
-		if line != "" {
-			b.WriteString(applyLineGradient(line, o.GradientStartHex, o.GradientEndHex))
-		}
-		b.WriteString("\n")
-	}
-	golazo = strings.TrimSuffix(b.String(), "\n")
-
-	// Version row
-	versionStyled := fg(o.GradientEndHex, version)
-	gap := max(0, golazoWidth-lipgloss.Width(version))
-	metaRow := strings.Repeat(" ", gap) + versionStyled
-
-	// Join the meta row and big GOLAZO title
-	golazo = strings.TrimSpace(golazo + "\n" + metaRow)
-
-	// Narrow/compact version
+	width := o.Width
 	if compact {
-		field := fg(o.FieldColorHex, strings.Repeat(diag, golazoWidth))
-		return strings.Join([]string{field, golazo, field}, "\n")
+		width = min(width, 48)
 	}
-
-	fieldHeight := lipgloss.Height(golazo)
-
-	// Left field
-	const leftWidth = 4
-	leftFieldRow := fg(o.FieldColorHex, strings.Repeat(diag, leftWidth))
-	leftField := new(strings.Builder)
-	for range fieldHeight {
-		fmt.Fprintln(leftField, leftFieldRow)
+	title := design.RenderHeader("SCORELINE", width)
+	if version == "" {
+		return title
 	}
-
-	// Right field with step-down effect
-	rightWidth := max(10, o.Width-golazoWidth-leftWidth-2)
-	rightField := new(strings.Builder)
-	for i := range fieldHeight {
-		width := rightWidth - i
-		if width < 0 {
-			width = 0
-		}
-		fmt.Fprint(rightField, fg(o.FieldColorHex, strings.Repeat(diag, width)), "\n")
-	}
-
-	// Join horizontally
-	const hGap = " "
-	logo := lipgloss.JoinHorizontal(lipgloss.Top, leftField.String(), hGap, golazo, hGap, rightField.String())
-
-	// Truncate to width if needed
-	if o.Width > 0 {
-		lines := strings.Split(logo, "\n")
-		for i, line := range lines {
-			if lipgloss.Width(line) > o.Width {
-				lines[i] = truncateAnsi(line, o.Width)
-			}
-		}
-		logo = strings.Join(lines, "\n")
-	}
-
-	return logo
+	versionStyled := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(o.GradientEndHex)).
+		Render(version)
+	return strings.TrimSpace(title + "\n" + lipgloss.NewStyle().Width(width).Align(lipgloss.Right).Render(versionStyled))
 }
 
 // RenderCompact renders a smaller inline version suitable for headers.
 func RenderCompact(width int) string {
-	return design.RenderHeader("GOLAZO", width)
+	return design.RenderHeader("SCORELINE", width)
 }
 
 // applyLineGradient applies a gradient to a single line of text.

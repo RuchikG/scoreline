@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Cache clearing utility for Golazo
+# Cache clearing utility for Scoreline
 # Usage: ./clear-cache.sh [match_id] [--all] [--list] [--team "team name"]
 
 set -e
@@ -11,7 +11,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-    echo "Golazo Cache Clearing Utility"
+    echo "Scoreline Cache Clearing Utility"
     echo ""
     echo "Usage:"
     echo "  $0 [match_id]        Clear cache for specific match ID"

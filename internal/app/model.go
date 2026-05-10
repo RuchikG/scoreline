@@ -9,14 +9,18 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/fotmob"
-	"github.com/0xjuanma/golazo/internal/notify"
-	"github.com/0xjuanma/golazo/internal/reddit"
-	"github.com/0xjuanma/golazo/internal/ui"
-	"github.com/0xjuanma/golazo/internal/ui/logo"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/cricket"
+	"github.com/RuchikG/scoreline/internal/cricketdata"
+	"github.com/RuchikG/scoreline/internal/cricsheet"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/notify"
+	"github.com/RuchikG/scoreline/internal/reddit"
+	"github.com/RuchikG/scoreline/internal/sports"
+	"github.com/RuchikG/scoreline/internal/ui"
+	"github.com/RuchikG/scoreline/internal/ui/logo"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -28,10 +32,22 @@ import (
 type view int
 
 const (
-	viewMain view = iota
-	viewLiveMatches
-	viewStats
-	viewSettings
+	viewSportSelector view = iota
+	viewSoccerMain
+	viewSoccerLiveMatches
+	viewSoccerStats
+	viewSoccerSettings
+	viewCricketMain
+	viewCricketLive
+	viewCricketArchives
+	viewCricketSettings
+)
+
+const (
+	viewMain        = viewSoccerMain
+	viewLiveMatches = viewSoccerLiveMatches
+	viewStats       = viewSoccerStats
+	viewSettings    = viewSoccerSettings
 )
 
 // standingsCacheEntry holds a fetched standings result with a timestamp for TTL checks.
@@ -51,8 +67,10 @@ type model struct {
 	height int
 
 	// View state
-	currentView view
-	selected    int
+	currentView    view
+	selected       int
+	selectedSport  sports.Sport
+	sportSessionID uint64
 
 	// Match data
 	matches             []ui.MatchDisplay
@@ -67,6 +85,12 @@ type model struct {
 
 	// Stats data cache - stores 5 days of data, filtered client-side for Today/3d/5d views
 	statsData *fotmob.StatsData
+
+	// Cricket data
+	cricketMatches        []cricket.Match
+	cricketDetails        *cricket.MatchDetails
+	cricketArchiveMatches []cricket.Match
+	cricketArchiveDetails *cricket.MatchDetails
 
 	// Progressive loading state (stats view)
 	statsDaysLoaded int // Number of days loaded so far (0-5)
@@ -110,12 +134,13 @@ type model struct {
 	useMockData         bool
 	debugMode           bool   // Enable debug logging to file
 	isDevBuild          bool   // Whether this is a development build
-	newVersionAvailable bool   // Whether a new version of Golazo is available
+	newVersionAvailable bool   // Whether a new version of Scoreline is available
 	appVersion          string // Current application version string
 	statsDateRange      int    // 1, 3, or 5 days (default: 1)
 
 	// Settings view state
-	settingsState *ui.SettingsState
+	settingsState        *ui.SettingsState
+	cricketSettingsState *ui.CricketSettingsState
 
 	// Dialog overlay for modal dialogs
 	dialogOverlay *ui.DialogOverlay
@@ -124,9 +149,11 @@ type model struct {
 	standingsCache map[int]*standingsCacheEntry
 
 	// API clients
-	fotmobClient *fotmob.Client
-	parser       *fotmob.LiveUpdateParser
-	redditClient *reddit.Client
+	fotmobClient    *fotmob.Client
+	cricketClient   *cricketdata.Client
+	cricsheetClient *cricsheet.Client
+	parser          *fotmob.LiveUpdateParser
+	redditClient    *reddit.Client
 
 	// Goal replay links from Reddit (keyed by matchID:minute)
 	goalLinks map[reddit.GoalLinkKey]*reddit.GoalLink
@@ -228,8 +255,26 @@ func New(useMockData bool, debugMode bool, isDevBuild bool, newVersionAvailable 
 	// Initialize animated logo for main view
 	animatedLogo := logo.NewAnimatedLogoWithType(appVersion, false, logo.DefaultOpts(), 1200, 1, logo.AnimationWave)
 
+	settings, _ := data.LoadSettings()
+	cricsheetClient, cricsheetErr := cricsheet.NewClient()
+	if cricsheetErr != nil {
+		logger.Warn("cricsheet client initialization failed", "error", cricsheetErr)
+	}
+	initialView := viewSportSelector
+	selectedSport := sports.None
+	if settings.SelectedSport.IsValid() {
+		selectedSport = settings.SelectedSport
+		if selectedSport == sports.Soccer {
+			initialView = viewSoccerMain
+		} else if selectedSport == sports.Cricket {
+			initialView = viewCricketMain
+		}
+	}
+
 	return model{
-		currentView:            viewMain,
+		currentView:            initialView,
+		selectedSport:          selectedSport,
+		sportSessionID:         1,
 		matchDetailsCache:      make(map[int]*api.MatchDetails),
 		standingsCache:         make(map[int]*standingsCacheEntry),
 		useMockData:            useMockData,
@@ -238,6 +283,8 @@ func New(useMockData bool, debugMode bool, isDevBuild bool, newVersionAvailable 
 		newVersionAvailable:    newVersionAvailable,
 		appVersion:             appVersion,
 		fotmobClient:           newFotmobClient(logger),
+		cricketClient:          cricketdata.NewClientFromEnv(settings.Cricket.APIKeyEnv),
+		cricsheetClient:        cricsheetClient,
 		parser:                 fotmob.NewLiveUpdateParser(),
 		redditClient:           redditClient,
 		goalLinks:              make(map[reddit.GoalLinkKey]*reddit.GoalLink),
@@ -268,7 +315,7 @@ func newFotmobClient(logger *slog.Logger) *fotmob.Client {
 	return c
 }
 
-// initLogger creates a structured logger. When debugMode is true, logs to ~/.golazo/golazo_debug.log.
+// initLogger creates a structured logger. When debugMode is true, logs to ~/.scoreline/scoreline_debug.log.
 // Otherwise returns a no-op logger. The caller should store the returned *os.File and close it on exit.
 func initLogger(debugMode bool) (*slog.Logger, *os.File) {
 	if !debugMode {
@@ -280,7 +327,7 @@ func initLogger(debugMode bool) (*slog.Logger, *os.File) {
 		return slog.New(slog.NewTextHandler(io.Discard, nil)), nil
 	}
 
-	logPath := filepath.Join(configDir, "golazo_debug.log")
+	logPath := filepath.Join(configDir, "scoreline_debug.log")
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return slog.New(slog.NewTextHandler(io.Discard, nil)), nil

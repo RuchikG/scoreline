@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/0xjuanma/golazo/internal/app"
-	"github.com/0xjuanma/golazo/internal/data"
-	"github.com/0xjuanma/golazo/internal/version"
+	"github.com/RuchikG/scoreline/internal/app"
+	"github.com/RuchikG/scoreline/internal/data"
+	"github.com/RuchikG/scoreline/internal/version"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -24,9 +24,9 @@ var versionFlag bool
 var debugFlag bool
 
 var rootCmd = &cobra.Command{
-	Use:   "golazo",
-	Short: "The beautiful game in your terminal",
-	Long:  `A minimal TUI for following football matches in real-time. Get live match updates, finished match statistics, and minute-by-minute events directly in your terminal.`,
+	Use:   "scoreline",
+	Short: "Multi-sport scores in your terminal",
+	Long:  `A minimal TUI for following soccer and cricket scores, live updates, match details, and sport-specific settings directly in your terminal.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if versionFlag {
 			version.Print(Version)
@@ -97,40 +97,18 @@ func runUpdate() {
 	}
 }
 
-// runBrewUpdate attempts to update golazo via Homebrew.
+// runBrewUpdate attempts to update scoreline via Homebrew.
 func runBrewUpdate() error {
-	cmd := exec.Command("brew", "upgrade", "0xjuanma/tap/golazo")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	if err := cmd.Run(); err != nil {
-		// brew upgrade can exit non-zero for two recoverable reasons:
-		//   1. The brew link step failed because a direct binary (e.g. from a
-		//      prior script install) already exists at /usr/local/bin/golazo,
-		//      preventing Homebrew from creating its symlink.
-		//   2. An unrelated brew cleanup error (e.g. Docker CLI plugins
-		//      permissions) fires after a successful upgrade+link.
-		// In both cases the formula was built successfully; attempt a forced
-		// re-link before giving up and falling back to the script.
-		fmt.Println("Attempting brew link recovery...")
-		linkCmd := exec.Command("brew", "link", "--overwrite", "0xjuanma/tap/golazo")
-		linkCmd.Stdout = os.Stdout
-		linkCmd.Stderr = os.Stderr
-		if linkErr := linkCmd.Run(); linkErr == nil {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return fmt.Errorf("Scoreline Homebrew formula is not configured yet; use the install script update path for now")
 }
 
-// runScriptUpdate updates golazo via the install script.
+// runScriptUpdate updates scoreline via the install script.
 func runScriptUpdate() error {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("powershell", "-Command", "irm https://raw.githubusercontent.com/0xjuanma/golazo/main/scripts/install.ps1 | iex")
+		cmd = exec.Command("powershell", "-Command", "irm https://raw.githubusercontent.com/RuchikG/scoreline/main/scripts/install.ps1 | iex")
 	} else {
-		cmd = exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/0xjuanma/golazo/main/scripts/install.sh | bash")
+		cmd = exec.Command("bash", "-c", "curl -fsSL https://raw.githubusercontent.com/RuchikG/scoreline/main/scripts/install.sh | bash")
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -138,7 +116,7 @@ func runScriptUpdate() error {
 	return cmd.Run()
 }
 
-// detectInstallationMethod returns "homebrew" or "script" based on how golazo was installed.
+// detectInstallationMethod returns "homebrew" or "script" based on how scoreline was installed.
 func detectInstallationMethod() string {
 	// 1. Fast path: check if binary is in Homebrew Cellar
 	if isBinaryInCellar() {
@@ -154,7 +132,7 @@ func detectInstallationMethod() string {
 	return "script"
 }
 
-// isBinaryInCellar checks if the golazo binary is located in Homebrew's Cellar directory.
+// isBinaryInCellar checks if the scoreline binary is located in Homebrew's Cellar directory.
 func isBinaryInCellar() bool {
 	execPath, err := os.Executable()
 	if err != nil {
@@ -166,16 +144,16 @@ func isBinaryInCellar() bool {
 		return false
 	}
 
-	return strings.Contains(realPath, "/Cellar/golazo/")
+	return strings.Contains(realPath, "/Cellar/scoreline/")
 }
 
-// isListedInBrew checks if golazo appears in brew's installed package list.
+// isListedInBrew checks if scoreline appears in brew's installed package list.
 func isListedInBrew() bool {
 	if _, err := exec.LookPath("brew"); err != nil {
 		return false
 	}
 
-	cmd := exec.Command("brew", "list", "golazo")
+	cmd := exec.Command("brew", "list", "scoreline")
 	return cmd.Run() == nil
 }
 
@@ -190,7 +168,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().BoolVar(&mockFlag, "mock", false, "Use mock data for all views instead of real API data")
-	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logging to ~/.golazo/golazo_debug.log")
-	rootCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "Update golazo to the latest version")
+	rootCmd.Flags().BoolVar(&debugFlag, "debug", false, "Enable debug logging to ~/.scoreline/scoreline_debug.log")
+	rootCmd.Flags().BoolVarP(&updateFlag, "update", "u", false, "Update scoreline to the latest version")
 	rootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Display version information")
 }

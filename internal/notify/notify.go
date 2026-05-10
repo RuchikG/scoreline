@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/assets"
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/data"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/assets"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/data"
 	"github.com/gen2brain/beeep"
 )
 
@@ -90,7 +90,7 @@ func (n *DesktopNotifier) Goal(event api.MatchEvent, homeTeam, awayTeam api.Team
 
 	// Send notification via beeep (cross-platform)
 	// Errors are ignored - OS notification is best-effort, beep already played
-	// Icon shows golazo logo on Linux/Windows; macOS shows terminal app icon
+	// Icon shows scoreline logo on Linux/Windows; macOS shows terminal app icon
 	_ = beeep.Notify(title, message, getIconPath())
 
 	return nil

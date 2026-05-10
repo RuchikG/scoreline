@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xjuanma/golazo/internal/api"
-	"github.com/0xjuanma/golazo/internal/constants"
-	"github.com/0xjuanma/golazo/internal/fotmob"
-	"github.com/0xjuanma/golazo/internal/reddit"
-	"github.com/0xjuanma/golazo/internal/ui"
+	"github.com/RuchikG/scoreline/internal/api"
+	"github.com/RuchikG/scoreline/internal/constants"
+	"github.com/RuchikG/scoreline/internal/fotmob"
+	"github.com/RuchikG/scoreline/internal/reddit"
+	"github.com/RuchikG/scoreline/internal/ui"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,39 +27,69 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSpinnerTick(msg)
 
 	case liveUpdateMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleLiveUpdate(msg)
 
 	case matchDetailsMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleMatchDetails(msg)
 
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
 
 	case liveMatchesMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleLiveMatches(msg)
 
 	case liveRefreshMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleLiveRefresh(msg)
 
 	case liveBatchDataMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleLiveBatchData(msg)
 
 	case statsDataMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleStatsData(msg)
 
 	case statsDayDataMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleStatsDayData(msg)
 
 	case ui.TickMsg:
 		return m.handleAnimationTick(msg)
 
 	case mainViewCheckMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleMainViewCheck(msg)
 
 	case pollTickMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handlePollTick(msg)
 
 	case pollDisplayCompleteMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handlePollDisplayComplete()
 
 	case list.FilterMatchesMsg:
@@ -67,10 +97,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFilterMatches(msg)
 
 	case goalLinksMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleGoalLinks(msg)
 
 	case standingsMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
 		return m.handleStandings(msg)
+
+	case cricketLiveMatchesMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
+		return m.handleCricketLiveMatches(msg)
+
+	case cricketArchiveMatchesMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
+		return m.handleCricketArchiveMatches(msg)
+
+	case cricketArchiveRefreshMsg:
+		if msg.sessionID != 0 && msg.sessionID != m.sportSessionID {
+			return m, nil
+		}
+		return m.handleCricketArchiveRefresh(msg)
 
 	default:
 		// Fallback handler for ui.TickMsg type assertion
@@ -145,7 +199,7 @@ func (m model) handleLiveUpdate(msg liveUpdateMsg) (tea.Model, tea.Cmd) {
 
 	// Continue polling if match is live
 	if m.polling && m.matchDetails != nil && m.matchDetails.Status == api.MatchStatusLive {
-		return m, schedulePollTick(m.matchDetails.ID, m.pollGen)
+		return m, schedulePollTick(m.sportSessionID, m.matchDetails.ID, m.pollGen)
 	}
 
 	m.loading = false
@@ -219,7 +273,7 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if hasGoals {
-		cmds = append(cmds, fetchGoalLinks(m.redditClient, msg.details))
+		cmds = append(cmds, fetchGoalLinks(m.sportSessionID, m.redditClient, msg.details))
 	}
 
 	// Cache for stats view (including during preload)
@@ -281,7 +335,7 @@ func (m model) handleMatchDetails(msg matchDetailsMsg) (tea.Model, tea.Cmd) {
 
 			m.polling = true
 			// Schedule next poll tick (90 seconds from now)
-			cmds = append(cmds, schedulePollTick(msg.details.ID, m.pollGen))
+			cmds = append(cmds, schedulePollTick(m.sportSessionID, msg.details.ID, m.pollGen))
 		} else {
 			m.loading = false
 			m.polling = false
@@ -313,7 +367,7 @@ func (m model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.loadCancel()
 		}
 		return m, tea.Quit
-	case "esc":
+	case "esc", "backspace", "ctrl+h":
 		// Check if any list is in filtering mode - if so, let the list handle Esc
 		// to cancel the filter instead of navigating back
 		isFiltering := false
@@ -329,6 +383,8 @@ func (m model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				isFiltering = m.settingsState.List.FilterState() == list.Filtering ||
 					m.settingsState.List.FilterState() == list.FilterApplied
 			}
+		case viewCricketSettings:
+			isFiltering = m.cricketSettingsState != nil && m.cricketSettingsState.Editing
 		}
 
 		if isFiltering {
@@ -336,13 +392,24 @@ func (m model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		if m.currentView != viewMain {
+		switch m.currentView {
+		case viewSportSelector:
+			return m, nil
+		case viewSoccerMain, viewCricketMain:
+			return m.resetToSportSelector()
+		case viewCricketLive, viewCricketArchives, viewCricketSettings:
+			m.currentView = viewCricketMain
+			m.selected = 0
+			return m, nil
+		default:
 			return m.resetToMainView()
 		}
 	}
 
 	// View-specific key handling
 	switch m.currentView {
+	case viewSportSelector:
+		return m.handleSportSelectorKeys(msg)
 	case viewMain:
 		return m.handleMainViewKeys(msg)
 	case viewLiveMatches:
@@ -351,6 +418,14 @@ func (m model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleStatsSelection(msg)
 	case viewSettings:
 		return m.handleSettingsViewKeys(msg)
+	case viewCricketMain:
+		return m.handleCricketMainViewKeys(msg)
+	case viewCricketLive:
+		return m.handleCricketLiveKeys(msg)
+	case viewCricketArchives:
+		return m.handleCricketArchiveKeys(msg)
+	case viewCricketSettings:
+		return m.handleCricketSettingsKeys(msg)
 	}
 
 	return m, nil
@@ -374,6 +449,43 @@ func (m model) resetToMainView() (tea.Model, tea.Cmd) {
 	m.polling = false
 	m.matches = nil
 	m.upcomingMatches = nil
+	m.cricketMatches = nil
+	m.cricketDetails = nil
+	m.cricketArchiveMatches = nil
+	m.cricketArchiveDetails = nil
+	m.cricketSettingsState = nil
+	m.statsRightPanelFocused = false
+	m.statsScrollOffset = 0
+	return m, nil
+}
+
+// resetToSportSelector clears sport-specific state and returns to sport selection.
+func (m model) resetToSportSelector() (tea.Model, tea.Cmd) {
+	if m.loadCancel != nil {
+		m.loadCancel()
+	}
+	m.sportSessionID++
+	m.currentView = viewSportSelector
+	m.selectedSport = ""
+	m.selected = 0
+	m.matchDetails = nil
+	m.matchDetailsCache = make(map[int]*api.MatchDetails)
+	m.liveUpdates = nil
+	m.lastEvents = nil
+	m.lastHomeScore = 0
+	m.lastAwayScore = 0
+	m.loading = false
+	m.mainViewLoading = false
+	m.liveViewLoading = false
+	m.statsViewLoading = false
+	m.polling = false
+	m.matches = nil
+	m.upcomingMatches = nil
+	m.cricketMatches = nil
+	m.cricketDetails = nil
+	m.cricketArchiveMatches = nil
+	m.cricketArchiveDetails = nil
+	m.cricketSettingsState = nil
 	m.statsRightPanelFocused = false
 	m.statsScrollOffset = 0
 	return m, nil
@@ -399,6 +511,7 @@ func (m model) handleLiveMatchesSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			return m, fetchStandings(
+				m.sportSessionID,
 				m.fotmobClient,
 				leagueID,
 				m.matchDetails.League.Name,
@@ -521,6 +634,7 @@ func (m model) handleStatsSelection(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// Fetch standings and open dialog
 			if m.matchDetails != nil {
 				return m, fetchStandings(
+					m.sportSessionID,
 					m.fotmobClient,
 					m.matchDetails.League.ID,
 					m.matchDetails.League.Name,
@@ -611,7 +725,7 @@ func (m model) handleLiveMatches(msg liveMatchesMsg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	// Schedule the next refresh (5-min timer)
-	cmds = append(cmds, scheduleLiveRefresh(m.fotmobClient, m.useMockData))
+	cmds = append(cmds, scheduleLiveRefresh(m.sportSessionID, m.fotmobClient, m.useMockData))
 
 	if len(msg.matches) == 0 {
 		m.liveViewLoading = false
@@ -658,7 +772,7 @@ func (m model) handleLiveRefresh(msg liveRefreshMsg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	// Schedule the next refresh
-	cmds = append(cmds, scheduleLiveRefresh(m.fotmobClient, m.useMockData))
+	cmds = append(cmds, scheduleLiveRefresh(m.sportSessionID, m.fotmobClient, m.useMockData))
 
 	// Update upcoming matches
 	upcomingDisplay := make([]ui.MatchDisplay, 0, len(msg.upcoming))
@@ -771,14 +885,14 @@ func (m model) handleLiveBatchData(msg liveBatchDataMsg) (tea.Model, tea.Cmd) {
 		}
 
 		// Schedule periodic refresh
-		cmds = append(cmds, scheduleLiveRefresh(m.fotmobClient, m.useMockData))
+		cmds = append(cmds, scheduleLiveRefresh(m.sportSessionID, m.fotmobClient, m.useMockData))
 
 		return m, tea.Batch(cmds...)
 	}
 
 	// Otherwise, fetch next batch
 	nextBatchIndex := msg.batchIndex + 1
-	cmds = append(cmds, fetchLiveBatchData(m.loadCtx, m.fotmobClient, m.useMockData, nextBatchIndex))
+	cmds = append(cmds, fetchLiveBatchData(m.sportSessionID, m.loadCtx, m.fotmobClient, m.useMockData, nextBatchIndex))
 
 	return m, tea.Batch(cmds...)
 }
@@ -956,7 +1070,7 @@ func (m model) handleStatsDayData(msg statsDayDataMsg) (tea.Model, tea.Cmd) {
 
 	// Otherwise, fetch next day
 	nextDayIndex := msg.dayIndex + 1
-	cmds = append(cmds, fetchStatsDayData(m.loadCtx, m.fotmobClient, m.useMockData, nextDayIndex, m.statsTotalDays))
+	cmds = append(cmds, fetchStatsDayData(m.sportSessionID, m.loadCtx, m.fotmobClient, m.useMockData, nextDayIndex, m.statsTotalDays))
 
 	return m, tea.Batch(cmds...)
 }
@@ -1023,7 +1137,7 @@ func filterMatchesByDays(matches []api.Match, days int) []api.Match {
 func (m model) handleAnimationTick(msg ui.TickMsg) (tea.Model, tea.Cmd) {
 	// Logo animation (main view, one-time)
 	logoAnimating := false
-	if m.currentView == viewMain && m.animatedLogo != nil && !m.animatedLogo.IsComplete() {
+	if (m.currentView == viewSportSelector || m.currentView == viewMain || m.currentView == viewCricketMain) && m.animatedLogo != nil && !m.animatedLogo.IsComplete() {
 		m.animatedLogo.Tick()
 		logoAnimating = true
 	}
@@ -1141,8 +1255,8 @@ func (m model) handlePollTick(msg pollTickMsg) (tea.Model, tea.Cmd) {
 	// Start the actual API call, spinner animation, and 1s display timer
 	// Also check for any new goals that might have been scored since last poll
 	return m, tea.Batch(
-		fetchPollMatchDetails(m.fotmobClient, msg.matchID, m.useMockData),
-		schedulePollSpinnerHide(), // Hide spinner after 0.5 seconds
+		fetchPollMatchDetails(m.sportSessionID, m.fotmobClient, msg.matchID, m.useMockData),
+		schedulePollSpinnerHide(m.sportSessionID), // Hide spinner after 0.5 seconds
 	)
 }
 

@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/0xjuanma/golazo/internal/ui/logo"
+	"github.com/RuchikG/scoreline/internal/ui/logo"
 )
 
 func main() {
