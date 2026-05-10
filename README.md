@@ -107,6 +107,6 @@ Cricket archives use Cricsheet JSON data cached under the Scoreline cache direct
 
 **Built with** [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss) & [Bubbles](https://github.com/charmbracelet/bubbles) by [Charm](https://charm.sh)
 
-Author: [@0xjuanma](https://github.com/0xjuanma)
+Author: [@RuchikG](https://github.com/RuchikG/)
 
 </div>
