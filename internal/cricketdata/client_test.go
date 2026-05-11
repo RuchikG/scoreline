@@ -64,6 +64,31 @@ func TestCurrentMatchesUsesCache(t *testing.T) {
 	}
 }
 
+func TestNewClientFromEnvUsesEnvironmentVariable(t *testing.T) {
+	t.Setenv("CRICKETDATA_TEST_KEY", "env-key")
+
+	client := NewClientFromEnv("CRICKETDATA_TEST_KEY")
+	if client.apiKey != "env-key" {
+		t.Fatalf("apiKey = %q, want env-key", client.apiKey)
+	}
+}
+
+func TestNewClientFromEnvAcceptsDirectAPIKey(t *testing.T) {
+	client := NewClientFromEnv("ABCDEF123")
+	if client.apiKey != "ABCDEF123" {
+		t.Fatalf("apiKey = %q, want ABCDEF123", client.apiKey)
+	}
+}
+
+func TestNewClientFromEnvDoesNotTreatMissingEnvNameAsKey(t *testing.T) {
+	t.Setenv("CRICKETDATA_MISSING_KEY", "")
+
+	client := NewClientFromEnv("CRICKETDATA_MISSING_KEY")
+	if client.apiKey != "" {
+		t.Fatalf("apiKey = %q, want empty", client.apiKey)
+	}
+}
+
 func TestMatchInfoMapsDetails(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/match_info" {

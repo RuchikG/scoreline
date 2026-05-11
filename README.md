@@ -44,7 +44,7 @@ Scoreline was created for those moments when you can't stream or watch matches l
 - **Soccer Match Statistics & Details**: Possession, shots, passes, standings, formations with player ratings, and more in focused dialogs.
 - **Cricket Live Dashboard**: Cricket-native match list and scorecard-oriented detail panel, with mock data and CricketData current-matches foundation.
 - **Cricket Archives**: Browse locally cached Cricsheet completed matches without spending CricketData API credits.
-- **Cricket Settings**: Configure formats, refresh intervals, archive window, and API key environment status inside the Cricket menu.
+- **Cricket Settings**: Configure formats, refresh intervals, archive window, and CricketData API key status inside the Cricket menu.
 - **65+ Soccer Leagues**: Organized by region (Europe, Americas, Global) with tab navigation in Soccer settings.
 
 ## Installation & Update
@@ -97,13 +97,24 @@ scoreline
 
 ### Cricket Data
 
-Live cricket scores use the free CricketData.org/CricAPI service. Sign up for a free API key at [CricketData.org](https://cricketdata.org/), then set the environment variable used by Scoreline's Cricket settings before launching the app:
+Live cricket scores use the free CricketData.org/CricAPI service. Sign up for a free API key at [CricketData.org](https://cricketdata.org/), then configure it in Scoreline.
+
+Recommended path:
+
+1. Open `Cricket -> Settings`.
+2. Select `API key/env`.
+3. Paste the actual CricketData API key.
+4. Press `Enter` to apply, then `s` to save.
+
+After saving, the row should show `configured`. Directly saved keys are masked in the settings screen.
+
+You can also use an environment variable instead. Set the variable before launching Scoreline:
 
 ```bash
 export CRICKETDATA_API_KEY="your-key"
 ```
 
-Do not commit your API key to the repo. If you prefer a different environment variable name, open Cricket → Settings and change the API key env value.
+Then keep `API key/env` set to `CRICKETDATA_API_KEY`, or enter a different environment variable name if you prefer. Do not commit your API key to the repo.
 
 Cricket archives use Cricsheet JSON data cached under the Scoreline cache directory. Open Cricket → Archives and press `r` to refresh the local archive cache. The current Cricsheet JSON archive is about 100 MB, so refresh is manual.
 

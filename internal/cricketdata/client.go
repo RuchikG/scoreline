@@ -43,14 +43,21 @@ type cachedDetails struct {
 	fetchedAt time.Time
 }
 
-// NewClientFromEnv creates a client using an API key environment variable.
+// NewClientFromEnv creates a client using an API key environment variable or a
+// direct API key. Environment-style values are resolved from the process env;
+// other values are treated as the key itself so pasting a key in settings works.
 func NewClientFromEnv(envName string) *Client {
-	if envName == "" {
-		envName = "CRICKETDATA_API_KEY"
+	apiKeySetting := strings.TrimSpace(envName)
+	if apiKeySetting == "" {
+		apiKeySetting = "CRICKETDATA_API_KEY"
+	}
+	apiKey := strings.TrimSpace(os.Getenv(apiKeySetting))
+	if apiKey == "" && !looksLikeEnvName(apiKeySetting) {
+		apiKey = apiKeySetting
 	}
 	return &Client{
 		baseURL:            defaultBaseURL,
-		apiKey:             strings.TrimSpace(os.Getenv(envName)),
+		apiKey:             apiKey,
 		cacheTTL:           defaultCacheTTL,
 		minRequestInterval: defaultMinRequestInterval,
 		httpClient: &http.Client{
@@ -64,6 +71,24 @@ func NewClientFromEnv(envName string) *Client {
 // HasAPIKey reports whether the client can call authenticated endpoints.
 func (c *Client) HasAPIKey() bool {
 	return c != nil && c.apiKey != ""
+}
+
+func looksLikeEnvName(value string) bool {
+	if value == "" {
+		return false
+	}
+	hasUnderscore := false
+	for i, r := range value {
+		switch {
+		case r == '_':
+			hasUnderscore = true
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return hasUnderscore
 }
 
 // CurrentMatches fetches current matches from the free currentMatches endpoint.

@@ -214,11 +214,11 @@ func renderCricketSettingsRows(state *CricketSettingsState, apiKeyConfigured boo
 		apiStatus = "configured"
 	}
 	rows = append(rows, "", neonDimStyle.Width(width).Render("CricketData"))
-	apiEnv := state.Settings.APIKeyEnv
+	apiEnv := displayAPIKeySetting(state.Settings.APIKeyEnv)
 	if state.Editing && state.EditRow == 8 {
 		apiEnv = "> " + state.EditText
 	}
-	rows = append(rows, settingsRow(state.Cursor == 8, fmt.Sprintf("API key env: %s (%s)", apiEnv, apiStatus), width))
+	rows = append(rows, settingsRow(state.Cursor == 8, fmt.Sprintf("API key/env: %s (%s)", apiEnv, apiStatus), width))
 	if state.Saved {
 		rows = append(rows, "", neonDimStyle.Width(width).Render("Saved"))
 	}
@@ -245,6 +245,35 @@ func splitCSV(value string) []string {
 		}
 	}
 	return values
+}
+
+func displayAPIKeySetting(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || looksLikeEnvName(value) {
+		return value
+	}
+	if len(value) <= 8 {
+		return "********"
+	}
+	return value[:4] + "..." + value[len(value)-4:]
+}
+
+func looksLikeEnvName(value string) bool {
+	if value == "" {
+		return false
+	}
+	hasUnderscore := false
+	for i, r := range value {
+		switch {
+		case r == '_':
+			hasUnderscore = true
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return hasUnderscore
 }
 
 func settingsRow(selected bool, text string, width int) string {
